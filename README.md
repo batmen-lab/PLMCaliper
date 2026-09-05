@@ -278,7 +278,7 @@ External software used in this experiment should be installed separately before 
 
 ---
 
-### 2. Conformal Benchmark
+### 4. Conformal Benchmark
 
 Directory:
 
