@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22436908.svg)](https://doi.org/10.5281/zenodo.22436908)
 # PLM-Caliper
 
 PLM-Caliper is a model-agnostic framework for false discovery rate (FDR) control in protein search with protein language models (PLMs). It uses query-derived decoys together with score calibration to estimate false discoveries and identify score thresholds corresponding to user-specified FDR levels.
@@ -42,8 +43,35 @@ python -m pip install -r requirements.txt
 
 ### Data
 
-- **Reference databases**, **library dependencies (PLM methods)**: — download from [zenodo]()
-- **PDB structures**: download from [pdbstyle-2.08](https://scop.berkeley.edu/downloads/pdbstyle/pdbstyle-sel-gs-bib-40-2.08.tgz)
+Download the required dataset (links below) and arrange the project as follows:
+
+```text
+PLMCaliper/
+├── data/
+│   ├── astral.fa
+│   ├── astral.tsv
+│   ├── astral4f_query.fa
+│   ├── astral4f_query.tsv
+│   ├── class_all.fa
+│   ├── class_all.tsv
+│   ├── putative.fa
+│   └── putative.tsv
+│
+├── libs/
+│   ├── Dense-Homolog-Retrieval-main/
+│   ├── PLMSearch-main/
+│   └── tm-vec-master/
+│
+└── src/
+    ├── analysis/
+    ├── PLM_searching_cmds/
+    ├── PLMCaliper/
+    ├── utils/
+    └── setup.sh
+```
+
+- **Reference databases**, **library dependencies (PLM methods)**: — download from [zenodo](https://zenodo.org/records/22436908)
+- **PDB structures**: — download from [pdbstyle-2.08](https://scop.berkeley.edu/downloads/pdbstyle/pdbstyle-sel-gs-bib-40-2.08.tgz)
 
 ---
 
@@ -64,7 +92,7 @@ python src/PLMCaliper/PLMCaliper.py make-decoy \
 
 ### 2. Run Protein Retrieval
 
-Search the original queries and the decoy queries against the same target database using the same method. The modified `libs` used to retain complete retrieval hits are available at [zenodo]().
+Search the original queries and the decoy queries against the same target database using the same method. The modified `libs` used to retain complete retrieval hits are available at [zenodo](https://zenodo.org/records/22436908).
 
 Then create the search environments and load the paths:
 
@@ -142,7 +170,8 @@ The experimental analysis code is organized under:
 src/analysis/
 ```
 
-Each subdirectory corresponds to an experiment reported in the paper.
+Each subdirectory corresponds to an experiment reported in the paper. 
+To save computation time, precomputed PLM-based search scores and calibration files are available for download from [Hugging Face](https://huggingface.co/datasets/yifanyang993/PLMCaliper).
 
 ---
 
@@ -312,126 +341,3 @@ python src/analysis/conformal_benchmark/plot.py all \
   --split-level fold
 ```
 
-
----
-
-## Repository Structure
-
-```text
-src/
-├── analysis/
-│   ├── ablation/
-│   │   ├── calibrate.py
-│   │   ├── fdr.py
-│   │   └── plot.py
-│   │
-│   ├── bagel/
-│   │   └── ...
-│   │
-│   ├── ColabFold/
-│   │   ├── build_data.py
-│   │   ├── build_msa.py
-│   │   ├── calibration.py
-│   │   ├── evaluate.py
-│   │   ├── plot.py
-│   │   └── predict.py
-│   │
-│   └── conformal_benchmark/
-│       ├── compute.py
-│       └── plot.py
-│
-├── PLM_searching_cmds/
-│   └── run_search.sh
-│
-├── PLMCaliper/
-│   ├── PLMCaliper.py
-│   └── run.sh
-│
-├── utils/
-│   ├── generate_other_decoy.py
-│   ├── parallel_utils.py
-│   └── process_searching_score.py
-│
-└── setup.sh
-```
-
-The main components are:
-
-- **`PLMCaliper/`**  
-  Core implementation of PLM-Caliper.
-
-- **`PLM_searching_cmds/`**  
-  Scripts and commands used to generate protein-retrieval scores with different protein search methods.
-
-- **`analysis/`**  
-  Experiment-specific code used to reproduce the results reported in the paper.
-
-- **`utils/`**  
-  Shared utilities for decoy generation, parallel processing, and search-score preprocessing.
-
----
-
-## Data Availability
-
-The processed query lists, benchmark labels, generated decoys, raw and calibrated search scores, selected thresholds, alignments, and structure-prediction outputs used in the paper will be available through Zenodo.
-
-**Zenodo:**
-
-```text
-Pending public Zenodo release.
-```
-
-The repository contains the code required to reproduce the analyses from these processed data.
-
----
-
-## Reproducibility
-
-Random seeds are fixed for stochastic procedures used in the analysis.
-
-To reproduce the reported results, we recommend using the provided software environment and the processed datasets associated with the paper.
-
-The recommended workflow is:
-
-```text
-1. Configure the PLM-Caliper environment
-       ↓
-2. Download the processed datasets
-       ↓
-3. Generate or load protein-search scores
-       ↓
-4. Run PLM-Caliper
-       ↓
-5. Run the experiment-specific analysis scripts
-       ↓
-6. Generate the reported figures and statistics
-```
-
-Exact commands for each experiment are provided in the sections above.
-
----
-
-## Citation
-
-If you use PLM-Caliper in your research, please cite:
-
-```bibtex
-@misc{plmcaliper,
-  title   = {PLM-Caliper: decoy-score calibration enables false discovery control in protein search with language models},
-  note    = {Manuscript in preparation}
-}
-```
-
----
-
-## License
-
-```text
-No open-source license has been declared yet.
-```
-
----
-
-## Contact
-
-For questions about PLM-Caliper or reproduction of the experiments, please open an issue in this repository.
