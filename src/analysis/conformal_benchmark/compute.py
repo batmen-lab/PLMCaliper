@@ -12,9 +12,9 @@ PROJECT_ROOT = SCRIPT_DIR.parents[2]
 CONFORMAL_LIB = PROJECT_ROOT / "libs" / "conformal-protein-retrieval"
 
 DEFAULT_SCORE_DIR = PROJECT_ROOT / "data"
-DEFAULT_CACHE_DIR = PROJECT_ROOT / "data" / "conformal_cache"
+DEFAULT_CACHE_DIR = PROJECT_ROOT / "data" / "conformal" / "cache"
 # one folder per (n_calib, split level); CSVs go in <combo>/data, plots in <combo>/figures
-DEFAULT_OUT_DIR = PROJECT_ROOT / "results_conformal"
+DEFAULT_OUT_DIR = PROJECT_ROOT / "data" / "conformal"
 
 # raw search-result tables: query = real ASTRAL40, database = ASTRAL40
 SCORE_FILES = {

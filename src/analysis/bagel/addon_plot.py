@@ -107,13 +107,13 @@ HIT_COLUMNS = ["qid", "rep_id", "tid", "homo_type_real", "score_real", "score_de
                "T_cutoff", "eFDP_at_T_cutoff"]
 
 
-def score_paths(method):
+def score_paths(method, data_dir=DATA_DIR):
     disk = METHOD_DISK.get(method, method)
     if method not in METHOD_DECOY:
         raise KeyError(f"no decoy database registered for method {method!r}")
     decoy = METHOD_DECOY[method]
-    return (DATA_DIR / f"result_{disk}_{QUERY_NAME}_target_noisy_{TARGET_NAME}.txt",
-            DATA_DIR / f"result_{disk}_{QUERY_NAME}_{decoy}"
+    return (data_dir / f"result_{disk}_{QUERY_NAME}_target_noisy_{TARGET_NAME}.txt",
+            data_dir / f"result_{disk}_{QUERY_NAME}_{decoy}"
                        f"_calibrated_gam_{WEIGHT_METHOD}_{TARGET_NAME}.txt")
 
 
@@ -124,8 +124,8 @@ def _strip_decoy_suffix(decoy_qid, real_qids):
     return None
 
 
-def load_pair_table(method):
-    real_path, decoy_path = score_paths(method)
+def load_pair_table(method, score_dir=DATA_DIR):
+    real_path, decoy_path = score_paths(method, score_dir)
     for path in (real_path, decoy_path):
         if not path.exists():
             raise FileNotFoundError(f"{method}: missing score table {path}")
@@ -204,11 +204,11 @@ def collapse_reps(hits):
                                                             n_reps_hit=("rep_id", "nunique"))
 
 
-def load_q_table(data_dir, method, cutoff, q_source):
+def load_q_table(data_dir, method, cutoff, q_source, score_dir=DATA_DIR):
     if q_source == "grid":
         return load_hits(data_dir, method, cutoff), None
     try:
-        detail = per_hit_qvalues(load_pair_table(method), cutoff)
+        detail = per_hit_qvalues(load_pair_table(method, score_dir), cutoff)
     except (FileNotFoundError, KeyError) as exc:
         print(f"[skip] {method}: {exc}")
         return None, None
@@ -608,8 +608,8 @@ def fig_qvalue_grid(wq, tied, order, out_path, *, method_label, cutoff, q_lo, dp
 
 # Driver.
 def run_method(method, *, data_dir, out_dir, cutoff, assign_how, order_how, kinds, q_lo,
-               q_source, coords, ids, id2class, putative, dpi):
-    hits, detail = load_q_table(data_dir, method, cutoff, q_source)
+               q_source, coords, ids, id2class, putative, dpi, score_dir=DATA_DIR):
+    hits, detail = load_q_table(data_dir, method, cutoff, q_source, score_dir)
     if hits is None:
         if q_source == "grid":
             print(f"[skip] {method}: no hits_{method}.tsv in {data_dir}")
@@ -685,6 +685,8 @@ def build_parser():
     ap.add_argument("--out-dir", type=Path, default=None,
                     help="default: data/plot_data/bagel/addon/<source dir name>")
     ap.add_argument("--methods", nargs="+", default=["plm", "tmvec", "dhr", "blastp"])
+    ap.add_argument("--score-dir", type=Path, default=DATA_DIR,
+                    help="where the calibrated score tables live (default: data/)")
     ap.add_argument("--cutoff", type=float, default=DEFAULT_CUTOFF, help="q cutoff (default 0.6)")
     ap.add_argument("--assign", choices=("weighted", "majority"), default="weighted")
     ap.add_argument("--order", choices=("true-class", "assigned"), default="true-class",
@@ -720,6 +722,7 @@ def main():
 
     for method in args.methods:
         run_method(method, data_dir=data_dir, out_dir=out_dir, cutoff=args.cutoff,
+                   score_dir=args.score_dir,
                    assign_how=args.assign, order_how=args.order, kinds=set(args.only), q_lo=q_lo,
                    q_source=args.q_source, coords=coords, ids=ids, id2class=id2class,
                    putative=putative, dpi=args.dpi)

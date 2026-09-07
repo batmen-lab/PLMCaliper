@@ -59,7 +59,7 @@ def data_root() -> Path:
     override = os.environ.get("PLMCALIPER_PLOT_DATA")
     if override:
         return Path(override)
-    return PROJECT_ROOT / "data" / "plot_data"
+    return PROJECT_ROOT / "data"
 
 
 def experiment_dir(name: str) -> Path:
@@ -71,8 +71,9 @@ _apply_rcparams()
 DEFAULT_DATA_DIR = experiment_dir("ColabFold")
 PROJECT_ROOT_ = Path(__file__).resolve().parents[3]
 DATASETS = ("astral", "ur50")
-RESULTS_DIR = {"astral": PROJECT_ROOT_ / "results" / "ColabFold" / "astral_db",
-               "ur50": PROJECT_ROOT_ / "results" / "ur50_exp"}
+# the run tree is derived data; only the figures go to results/
+RESULTS_DIR = {"astral": PROJECT_ROOT_ / "data" / "ColabFold" / "astral_db",
+               "ur50": PROJECT_ROOT_ / "data" / "ColabFold" / "ur50_exp"}
 
 
 def metrics_path(dataset: str, method: str, jack_iters: int) -> Path:

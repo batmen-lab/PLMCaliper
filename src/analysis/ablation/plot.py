@@ -181,7 +181,7 @@ def _fit_figure_to_right_panel(fig, ax, legend=None, text_artist=None,
 
 _apply_rcparams()
 
-DEFAULT_DATA_DIR = PROJECT_ROOT / "results" / "ablation" / "plot_data"
+DEFAULT_DATA_DIR = PROJECT_ROOT / "data" / "ablation" / "plot_data"
 
 SEARCH_METHOD_DISPLAY = {"plm": "PLMsearch", "tmvec": "TMvec", "dhr_postprocess": "DHR",
                          "blastp_postprocessed": "BLASTp"}

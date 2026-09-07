@@ -29,7 +29,7 @@ case "$METHOD" in
 esac
 
 # SCOP targets carry SCOP labels in the FASTA header; anything else (the BAGEL
-# bacteriocin sets) gets its homology labels from data/bagel_class.txt instead.
+# bacteriocin sets) get their homology labels from the BAGEL class encoded in the id.
 case "$(basename "$TARGET_PATH" "$QUERY_EXT")" in
     astral95) TARGET_MODE=scop; BASEDB="SCOPe95" ;;
     astral*)  TARGET_MODE=scop; BASEDB="SCOPe40" ;;
@@ -189,7 +189,7 @@ if [[ "$TARGET_MODE" == "scop" ]]; then
         --basedb "$BASEDB"
     PARSED="$DATA_DIR/parsed_result/${OUT_TAG}_hit${PARSER_KHITS}.txt"
 else
-    # decoy suffix to strip before looking the id up in bagel_class.txt
+    # decoy suffix to strip before the id's BAGEL class is read off it
     case "$query_basename" in
         *_extended_shuf|*_shuf) TYPE_SUFFIX="shuf" ;;
         *_extended_mkv*)        TYPE_SUFFIX="mkv" ;;
@@ -205,7 +205,6 @@ else
         --method "$METHOD" \
         --score-file "$OUTPUT_DIR/${query_basename}.${RAW_EXT}" \
         --out-path "$PARSED" \
-        --homo-info "$DATA_DIR/bagel_class.txt" \
         --type-suffix "$TYPE_SUFFIX" \
         --max-hits "$PARSER_KHITS"
 fi

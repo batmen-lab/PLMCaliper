@@ -157,6 +157,12 @@ ENV/
 env.bak/
 venv.bak/
 
+# ...but env/ in this repo is the conda spec directory, not a virtualenv.
+# Un-ignore the directory, keep ignoring anything in it except the specs.
+!env/
+env/*
+!env/*.yml
+
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -216,3 +222,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# runtime artefacts
+/data/
+/results/

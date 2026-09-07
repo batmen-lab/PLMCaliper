@@ -1,5 +1,6 @@
 import argparse
 import importlib.util
+import os
 import re
 import subprocess
 from io import StringIO
@@ -11,8 +12,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = PROJECT_ROOT / "data"
 
 DATASETS = ("astral", "ur50")
-RESULTS_DIR = {"astral": PROJECT_ROOT / "results" / "ColabFold" / "astral_db",
-               "ur50": PROJECT_ROOT / "results" / "ur50_exp"}
+# the run tree is derived data; only the figures go to results/
+RESULTS_DIR = {"astral": PROJECT_ROOT / "data" / "ColabFold" / "astral_db",
+               "ur50": PROJECT_ROOT / "data" / "ColabFold" / "ur50_exp"}
 # step 1 writes these; step 2 reads them. --real/--decoy override both.
 RAW_REAL = {"astral": DATA_DIR / "result_{m}_astral_astral.txt",
             "ur50": DATA_DIR / "search_data" / "result_{m}_astral4f_ur50.txt"}
@@ -168,8 +170,9 @@ def parse_args() -> argparse.Namespace:
                    help="pinball tau; 0.2 reproduces the published ColabFold runs")
     p.add_argument("--skip-calibration", action="store_true",
                    help="reuse an existing cutoffs.tsv and only re-select hits")
-    p.add_argument("--python", default=None,
-                   help="optional interpreter for running the same PLMCaliper.py out of process")
+    p.add_argument("--python", default=os.environ.get("PLMCALIPER_PYTHON") or None,
+                   help="interpreter for running PLMCaliper.py out of process "
+                        "(default: $PLMCALIPER_PYTHON, else in-process import)")
     p.add_argument("--out-cutoffs", type=Path, default=None)
     p.add_argument("--out-hits", type=Path, default=None)
     return p.parse_args()

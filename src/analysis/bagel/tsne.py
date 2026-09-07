@@ -14,14 +14,10 @@ import pandas as pd
 BASE_DIR = Path(__file__).resolve().parents[3]
 DATA_DIR = BASE_DIR / "data"
 DB_DIR = DATA_DIR / "db"
-BAGEL_PLOT_DIR = DATA_DIR / "plot_data" / "bagel"
+BAGEL_PLOT_DIR = DATA_DIR / "bagel"
 PLOT_DATA_DIR = BAGEL_PLOT_DIR / "tsne_per_query"
-CLASS_FILE = DATA_DIR / "bagel_class.txt"
+CLASS_ALL_FA = DATA_DIR / "class_all.fa"
 PUTATIVE_FA = DATA_DIR / "putative.fa"
-
-COORDS_NPY = DATA_DIR / "X_2d_all.npy"
-IDS_NPY = DATA_DIR / "seqs_all.npy"
-LABELS_NPY = DATA_DIR / "labels_all.npy"
 
 TMVEC_SRC = BASE_DIR / "libs" / "tm-vec-master"
 BUILD_DB_SCRIPT = TMVEC_SRC / "scripts" / "tmvec-build-database"
@@ -32,10 +28,7 @@ Q_LEVELS = [0.10, 0.20, 0.30, 0.40, 0.50, 0.60]
 METHOD_DISK = {"plm": "plm", "tmvec": "tmvec", "dhr": "dhr_postprocess",
                "blastp": "blastp_postprocessed"}
 
-# Nature-style rcParams and sizes, inlined here so this file stands alone
 FONT_LABEL, FONT_TITLE, FONT_TICK, FONT_LEGEND = 7, 7, 6, 6
-# Without this preference list matplotlib picks its own DejaVu Sans default, which
-# would not match the Arial in the existing per-query figures
 _SANS_PREF = ["Helvetica", "Arial", "Nimbus Sans", "Liberation Sans",
               "TeX Gyre Heros", "DejaVu Sans"]
 matplotlib.rcParams.update({
@@ -55,15 +48,10 @@ CLASS_COLORS = {"1": "#0173B2", "2": "#DE8F05", "3": "#029E73", "Unknown": "#BBB
 Q_BAND_CMAP = "plasma"
 ACCEPTED_HIT_SIZE = 18
 QUERY_STAR_SIZE = 90
-# Summary map: identical to a per-query panel except every putative is a star.
-# plot_query's map axes measures exactly 3.4 x 3.4 in, so reproducing that box keeps the
-# absolute 6/7 pt type at the same size relative to the plot.
 SUMMARY_AX_SIZE = 3.4
 SUMMARY_BG_SIZE = 18
 SUMMARY_BG_ALPHA = 0.18
 SUMMARY_STAR_SIZE = QUERY_STAR_SIZE
-# shared by the plotted stars and the legend key, so the black rim reads the same in both
-# (Line2D would otherwise fall back to rcParams' 1.0 pt markeredgewidth)
 SUMMARY_STAR_EDGE_LW = 0.5
 
 
@@ -71,11 +59,22 @@ def safe_filename(text):
     return re.sub(r"[^\w.\-]+", "_", str(text))
 
 
-def load_id2class_codes():
-    df = pd.read_csv(CLASS_FILE, sep="\t")
-    m = {"ClassI": "1", "ClassII": "2", "ClassIII": "3"}
-    code = df["class"].astype(str).map(m).fillna(df["class"].astype(str))
-    return df, code
+def fasta_ids(path):
+    """Sequence ids in file order, description dropped."""
+    with open(path) as fh:
+        return [line[1:].split(None, 1)[0].strip() for line in fh if line.startswith(">")]
+
+
+def load_id2class_codes(fastas=None):
+    """id -> BAGEL class code ("1"/"2"/"3")"""
+    fastas = list(fastas or (CLASS_ALL_FA, PUTATIVE_FA))
+    ids = []
+    for fa in fastas:
+        if not Path(fa).exists():
+            raise SystemExit(f"[tsne] missing {fa}; needed for the BAGEL class labels")
+        ids.extend(fasta_ids(fa))
+    df = pd.DataFrame({"ids": ids}).drop_duplicates("ids", ignore_index=True)
+    return df, df["ids"].map(class_from_qid)
 
 
 def build_or_load_embeddings(fasta, db_out, device):
@@ -133,8 +132,8 @@ def run_coords(out_dir, putative_fa, class_all_fa, *, seed, perplexity, init,
     print(f"[OK] wrote X_2d_all/seqs_all/labels_all.npy ({X_2d.shape[0]} points) -> {out_dir}")
 
 
-def write_hits_for_method(out_dir, label, decoy_method):
-    path = DATA_DIR / f"putative_discovery_hits_scan_{METHOD_DISK[label]}_{decoy_method}.tsv"
+def write_hits_for_method(out_dir, label, decoy_method, scan_dir=DATA_DIR):
+    path = scan_dir / f"putative_discovery_hits_scan_{METHOD_DISK[label]}_{decoy_method}.tsv"
     if not path.exists():
         print(f"  [WARN] {label}: missing {path.name}; skip")
         return 0
@@ -148,11 +147,11 @@ def write_hits_for_method(out_dir, label, decoy_method):
     return hits["qid"].nunique()
 
 
-def run_prep(out_dir, methods, decoy_method):
+def run_prep(out_dir, methods, decoy_method, coords_dir=DATA_DIR, scan_dir=DATA_DIR):
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    coords = np.load(COORDS_NPY)
-    ids = np.load(IDS_NPY, allow_pickle=True).astype(str)
+    coords = np.load(Path(coords_dir) / "X_2d_all.npy")
+    ids = np.load(Path(coords_dir) / "seqs_all.npy", allow_pickle=True).astype(str)
     if coords.shape[0] != ids.shape[0]:
         raise ValueError(f"coords/ids length mismatch: {coords.shape} vs {ids.shape}")
     np.save(out_dir / "coords.npy", coords)
@@ -165,7 +164,8 @@ def run_prep(out_dir, methods, decoy_method):
     print(f"[OK] coords + ids: {len(ids)} points   id2class: {len(df)} targets")
 
     for label in methods:
-        print(f"[OK] hits_{label}.tsv: {write_hits_for_method(out_dir, label, decoy_method)} queries")
+        print(f"[OK] hits_{label}.tsv: "
+              f"{write_hits_for_method(out_dir, label, decoy_method, Path(scan_dir))} queries")
 
     meta_path = out_dir / "meta.json"
     existing = json.loads(meta_path.read_text()) if meta_path.exists() else {}
@@ -433,7 +433,9 @@ def build_parser():
                     choices=("plm", "tmvec", "dhr", "blastp"))
     ap.add_argument("--decoy-method", default=DECOY_METHOD)
     ap.add_argument("--coords-dir", type=Path, default=DATA_DIR,
-                    help="where X_2d_all/seqs_all/labels_all.npy live")
+                    help="where X_2d_all/seqs_all/labels_all.npy are written and read")
+    ap.add_argument("--scan-dir", type=Path, default=DATA_DIR,
+                    help="where discover wrote putative_discovery_hits_scan_*.tsv")
     ap.add_argument("--data-dir", type=Path, default=PLOT_DATA_DIR)
     ap.add_argument("--plot-dir", type=Path, default=PLOT_DATA_DIR / "figures")
     ap.add_argument("--summary-out", type=Path,
@@ -461,7 +463,8 @@ def main():
                    learning_rate=args.learning_rate, scale=not args.no_scale,
                    device=args.device, force=args.force)
     if args.stage in ("all", "prep"):
-        run_prep(args.data_dir, args.methods, args.decoy_method)
+        run_prep(args.data_dir, args.methods, args.decoy_method,
+                 args.coords_dir, args.scan_dir)
     if args.stage in ("all", "plot"):
         run_plot(args.data_dir, args.plot_dir, args.methods, args.decoy_method)
     if args.stage in ("all", "summary"):

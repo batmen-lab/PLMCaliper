@@ -1,12 +1,11 @@
-# Core dependencies for PLMCaliper
+# Core dependencies for PLMCaliper.
 biopython==1.85
 clarabel==0.11.1
 cvxpy==1.8.2
-numpy==2.2.6
-osqp==1.1.1
-pandas==2.2.3
+matplotlib==3.10.8
+numpy==2.4.3
+pandas==3.0.2
 patsy==1.0.2
 scikit-learn==1.8.0
-scipy==1.13.0
-scs==3.2.11
-tqdm==4.67.1
+scipy==1.17.1
+tqdm==4.67.3

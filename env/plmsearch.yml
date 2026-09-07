@@ -1,0 +1,22 @@
+# PLMSearch: ESM-1b embeddings + the plmsearch similarity model.
+# Source lives in libs/PLMSearch-main (PLMSEARCH_SRC_DIR), so nothing is
+# installed from it -- this env only provides the stack it imports.
+name: plmsearch
+channels:
+  - conda-forge
+  - pytorch
+  - nvidia
+dependencies:
+  - python=3.11
+  - pytorch=2.5.1
+  - pytorch-cuda=12.4
+  - numpy=2.2.6
+  - pandas=2.2.3
+  - scikit-learn=1.8.0
+  - scipy=1.17.1
+  - biopython=1.85
+  - tqdm
+  - pip
+  - pip:
+      - fair-esm==2.0.0    # ESM-1b, loaded by plmsearch/embedding_generate.py
+      - transformers==4.56.0

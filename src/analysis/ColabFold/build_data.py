@@ -35,7 +35,7 @@ TMVEC_CHUNKS = DATA_DIR / "uniref50" / "tmvec_chunks"
 TMVEC_DB = DATA_DIR / "db" / "db_ur50_tmvec"
 PLM_CHUNKS = DATA_DIR / "uniref50" / "plm_chunks"
 PLM_DB = DATA_DIR / "db" / "db_ur50_plm"
-UR50_RESULTS = ROOT / "results" / "ur50_exp"
+UR50_RESULTS = ROOT / "data" / "ColabFold" / "ur50_exp"
 
 
 def raw_real(dataset: str, method: str) -> Path:

@@ -1343,7 +1343,10 @@ def _discover_args(argv):
     parser.add_argument("--decoy-method", default=DECOY_METHOD)
     parser.add_argument("--weight-method", default=WEIGHT_METHOD)
     parser.add_argument("--decoy-suffix", default=DECOY_SUFFIX)
-    parser.add_argument("--q-single", type=float, default=Q_SINGLE)
+    parser.add_argument("--target-fdr", "--q-single", dest="q_single",
+                        type=float, default=Q_SINGLE,
+                        help="FDR level of the single-level discovery table "
+                             "(--q-single is kept as an alias)")
     parser.add_argument(
         "--q-levels",
         nargs="+",

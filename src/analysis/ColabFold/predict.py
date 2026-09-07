@@ -11,8 +11,9 @@ import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATASETS = ("astral", "ur50")
-RESULTS_DIR = {"astral": PROJECT_ROOT / "results" / "ColabFold" / "astral_db",
-               "ur50": PROJECT_ROOT / "results" / "ur50_exp"}
+# the run tree is derived data; only the figures go to results/
+RESULTS_DIR = {"astral": PROJECT_ROOT / "data" / "ColabFold" / "astral_db",
+               "ur50": PROJECT_ROOT / "data" / "ColabFold" / "ur50_exp"}
 
 # ColabFold prediction settings (Methods)
 COLABFOLD_NUM_MODELS = 1

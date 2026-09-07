@@ -13,8 +13,9 @@ LIBS = PROJECT_ROOT / "libs"
 QJACKHMMER = LIBS / "Dense-Homolog-Retrieval-main" / "bin" / "qjackhmmer"
 
 DATASETS = ("astral", "ur50")
-RESULTS_DIR = {"astral": PROJECT_ROOT / "results" / "ColabFold" / "astral_db",
-               "ur50": PROJECT_ROOT / "results" / "ur50_exp"}
+# the run tree is derived data; only the figures go to results/
+RESULTS_DIR = {"astral": PROJECT_ROOT / "data" / "ColabFold" / "astral_db",
+               "ur50": PROJECT_ROOT / "data" / "ColabFold" / "ur50_exp"}
 
 QUERY_SOURCE = {"astral": ("fasta", DATA_DIR / "astral.fa"),
                 "ur50": ("tsv", DATA_DIR / "astral4f_query.tsv")}

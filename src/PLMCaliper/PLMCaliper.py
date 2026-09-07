@@ -10,6 +10,7 @@ import pandas as pd
 
 # id suffix that the extended-Markov decoy generator puts on every decoy
 DECOY_SUFFIX = "_mkv"
+DEFAULT_DESIGN = "extended_mkv"
 DEFAULT_Q_LEVELS = [0.50]
 SCORE_COLS = ["qid", "tid", "score"]
 HIT_COLS = ["qid", "tid", "rep_id", "score", "est_fdp"]
@@ -24,10 +25,19 @@ def _tqdm(iterable=None, **kwargs):
     return tqdm(iterable, **kwargs)
 
 
-def protein_markovgen(sequence, k):
-    """Resample a sequence from an order-k Markov chain fitted on itself."""
+def protein_markovgen(sequence, k, on_short="shuffle"):
+    """Resample a sequence from an order-k Markov chain fitted on itself.
+
+    A sequence shorter than k+1 has no order-k statistics to fit. `on_short`
+    picks what to do then: "shuffle" falls back to a plain shuffle (what the
+    extended-Markov design does), "raise" rejects the sequence (what the plain
+    Markov design does).
+    """
     seq_len = len(sequence)
     if seq_len < k + 1:
+        if on_short == "raise":
+            raise ValueError(
+                f"sequence of length {seq_len} is too short for Markov order {k}")
         seq_list = list(sequence)
         random.shuffle(seq_list)
         return ''.join(seq_list)
@@ -61,23 +71,106 @@ def protein_markovgen(sequence, k):
     return ''.join(result)
 
 
-def make_decoy(fasta_path, out_path=None, markov_order=2, seed=0):
-    """Write one decoy per query: the sequence followed by an order-k Markov resample."""
+# ---------------------------------------------------------------------------
+# Decoy designs
+#
+# A builder takes the parsed input records and returns (decoy_id, decoy_seq)
+# pairs; make_decoy() turns those into the output FASTA. Biopython is imported
+# lazily there, so the builders never touch it and stay easy to reuse.
+#
+# The suffix is what marks a query as a decoy downstream -- pass the same string
+# to `calibrate --decoy-suffix`. The ablation in src/analysis/ablation compares
+# exactly these designs.
+# ---------------------------------------------------------------------------
+
+
+def _build_extended_mkv(records, markov_order=2, seed=0):
+    """seq + markov_k(seq): the decoy keeps the real sequence as a prefix."""
+    random.seed(seed)
+    out = []
+    for record in records:
+        seq = str(record.seq).upper()
+        out.append((record.id + "_mkv", seq + protein_markovgen(seq, markov_order)))
+    return out
+
+
+def _build_mkv(records, markov_order=2, seed=0):
+    """markov_k(seq) alone, same length as the query."""
+    random.seed(seed)
+    out = []
+    for record in records:
+        seq = str(record.seq)
+        try:
+            decoy = protein_markovgen(seq, markov_order, on_short="raise")
+        except ValueError as err:
+            raise SystemExit(
+                f"[PLMCaliper] {record.id}: {err}.\n"
+                f"             Lower --markov-order, drop the short sequences, or use "
+                f"--design extended_mkv, which shuffles them instead.") from None
+        out.append((f"{record.id}_mkv{markov_order}", decoy))
+    return out
+
+
+def _build_shuf(records, markov_order=2, seed=0):
+    """shuffle(seq): same residue composition, no order."""
+    rng = np.random.default_rng(seed=seed)
+    out = []
+    for record in records:
+        seq_list = list(str(record.seq))
+        rng.shuffle(seq_list)
+        out.append((record.id + "_shuf", "".join(seq_list)))
+    return out
+
+
+def _build_rev(records, markov_order=2, seed=0):
+    """reverse(seq): composition and local windows preserved, direction flipped."""
+    return [(record.id + "_rev", str(record.seq)[::-1]) for record in records]
+
+
+def _build_dplm(records, markov_order=2, seed=0):
+    """Decoys sampled from the DPLM protein language model. Not bundled here."""
+    raise SystemExit(
+        "[PLMCaliper] the 'dplm' design samples decoys from the DPLM protein "
+        "language model, which is not part of this release.\n"
+        "             Generate the decoy FASTA with DPLM separately, give every "
+        "id the '_dplm' suffix, then run\n"
+        "             PLMCaliper.py calibrate --decoy-suffix _dplm ...")
+
+
+# name -> (id suffix, builder, default output stem suffix)
+DECOY_DESIGNS = {
+    "extended_mkv": ("_mkv",  _build_extended_mkv, "_extended_mkv{k}"),
+    "mkv":          ("_mkv{k}", _build_mkv,        "_mkv{k}"),
+    "shuf":         ("_shuf", _build_shuf,         "_shuf"),
+    "rev":          ("_rev",  _build_rev,          "_rev"),
+    "dplm":         ("_dplm", _build_dplm,         "_dplm"),
+}
+
+
+def decoy_suffix_for(design, markov_order=2):
+    """The id suffix a design stamps on its decoys -- calibrate's --decoy-suffix."""
+    return DECOY_DESIGNS[design][0].format(k=markov_order)
+
+
+def make_decoy(fasta_path, out_path=None, markov_order=2, seed=0, design=DEFAULT_DESIGN):
+    """Write one decoy per query, using the named decoy design."""
     from Bio import SeqIO          # biopython is only needed for this step
     from Bio.Seq import Seq
     from Bio.SeqRecord import SeqRecord
 
-    out_path = out_path or f"{os.path.splitext(fasta_path)[0]}_extended_mkv{markov_order}.fa"
-    random.seed(seed)
+    if design not in DECOY_DESIGNS:
+        raise SystemExit(f"[PLMCaliper] unknown decoy design {design!r}; expected one of "
+                         f"{', '.join(sorted(DECOY_DESIGNS))}")
+    id_suffix, build, stem_suffix = DECOY_DESIGNS[design]
+    out_path = out_path or (f"{os.path.splitext(fasta_path)[0]}"
+                            f"{stem_suffix.format(k=markov_order)}.fa")
 
-    records = []
-    for record in SeqIO.parse(fasta_path, "fasta"):
-        seq = str(record.seq).upper()
-        mkv_seq = protein_markovgen(seq, markov_order)
-        records.append(SeqRecord(Seq(seq + mkv_seq), id=record.id + DECOY_SUFFIX, description=""))
-
-    SeqIO.write(records, out_path, "fasta")
-    print(f"[PLMCaliper] {len(records)} decoy sequences written")
+    records = build(list(SeqIO.parse(fasta_path, "fasta")),
+                    markov_order=markov_order, seed=seed)
+    SeqIO.write([SeqRecord(Seq(seq), id=rid, description="") for rid, seq in records],
+                out_path, "fasta")
+    print(f"[PLMCaliper] {len(records)} '{design}' decoy sequences written "
+          f"(id suffix {id_suffix.format(k=markov_order)})")
     return out_path
 
 
@@ -507,8 +600,11 @@ def main(argv=None):
 
     p = sub.add_parser("make-decoy", help="build the decoy FASTA to search")
     p.add_argument("--fasta", required=True, help="query FASTA")
-    p.add_argument("--out", default=None, help="output FASTA (default: <stem>_extended_mkv2.fa)")
-    p.add_argument("--markov-order", type=int, default=2)
+    p.add_argument("--out", default=None, help="output FASTA (default: <stem><design suffix>.fa)")
+    p.add_argument("--design", default=DEFAULT_DESIGN, choices=sorted(DECOY_DESIGNS),
+                   help=f"decoy design (default: {DEFAULT_DESIGN}, the one used in the paper)")
+    p.add_argument("--markov-order", type=int, default=2,
+                   help="k for the extended_mkv and mkv designs")
     p.add_argument("--seed", type=int, default=0)
 
     p = sub.add_parser("calibrate", help="score tables -> per-query cutoffs")
@@ -537,11 +633,12 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     if args.cmd == "make-decoy":
-        out = make_decoy(args.fasta, args.out, args.markov_order, args.seed)
+        out = make_decoy(args.fasta, args.out, args.markov_order, args.seed, args.design)
+        suffix = decoy_suffix_for(args.design, args.markov_order)
         print(f"[PLMCaliper] decoy FASTA -> {out}")
         print("[PLMCaliper] next: search this file against the same target DB, then run\n"
               "             PLMCaliper.py calibrate --real <real.tsv> --decoy <decoy.tsv> "
-              "--target-fdr <fdr> --out cutoffs.tsv")
+              f"--decoy-suffix {suffix} --target-fdr <fdr> --out cutoffs.tsv")
     elif args.cmd == "calibrate":
         calibrate(args.real, args.decoy, args.out,
                   decoy_suffix=args.decoy_suffix, q_levels=args.target_fdr,

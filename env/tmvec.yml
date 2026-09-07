@@ -1,0 +1,27 @@
+# TM-Vec / DeepBLAST: ProtT5 embeddings + structure-aware vector search.
+# Python is 3.10 here, unlike the other envs. After creating it, install the
+# vendored source without touching these pins:
+#   conda run -n tmvec python -m pip install --no-deps -e libs/tm-vec-master deepblast==1.0.2
+name: tmvec
+channels:
+  - conda-forge
+  - pytorch
+  - nvidia
+dependencies:
+  - python=3.10
+  - pytorch-cuda=11.8
+  - pytorch-lightning=2.5.4
+  - torchmetrics=1.8.1
+  - faiss-gpu=1.9.0
+  - numpy=1.26.4
+  - pandas=2.3.3
+  - scipy=1.15.2
+  - scikit-learn=1.7.1
+  - biopython=1.85
+  - matplotlib-base=3.10.6  # tsne.py imports it at module level
+  - numba=0.61.2
+  - pysam=0.23.3           # build_data.py's tmvec_encode_worker
+  - pip
+  - pip:
+      - transformers==4.44.2
+      - sentencepiece==0.2.1

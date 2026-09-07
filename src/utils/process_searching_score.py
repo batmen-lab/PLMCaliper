@@ -360,6 +360,21 @@ def load_ids(fasta_path):
     return [rec.id for rec in SeqIO.parse(fasta_path, "fasta")]
 
 
+def class_of(seq_id):
+    """BAGEL id `89.1;Name` -> class code "1"/"2"/"3"
+    """
+    head = str(seq_id).split(";", 1)[0].split(".")
+    return head[1] if len(head) >= 2 and head[1] in {"1", "2", "3"} else None
+
+
+def class_lookup(path=None):
+    """id -> class."""
+    if not path:
+        return class_of
+    cls = load_class_map(path)
+    return cls.get
+
+
 def load_class_map(path):
     """bagel_class.txt: id<TAB>class, with a header row."""
     m = {}
@@ -378,24 +393,22 @@ def clean_id(id_str, decoy_suffix):
     return re.sub(fr"_{decoy_suffix}.*$", "", id_str)
 
 
-def _assign_homo_types(df, homo_dict, type_suffix, unclassified):
+def _assign_homo_types(df, class_of_id, type_suffix, unclassified):
     """BAGEL homology is binary: same class -> 1, otherwise -1."""
     out = []
     for _, row in tqdm(df.iterrows(), total=len(df), desc="Processing homo type"):
         tid_clean = clean_id(row["tid"], type_suffix)
         if unclassified:
-            out.append(homo_dict.get(tid_clean, None))
+            out.append(class_of_id(tid_clean))
             continue
         qid_clean = clean_id(row["qid"], type_suffix)
-        out.append("1" if homo_dict.get(qid_clean) == homo_dict.get(tid_clean) else "-1")
+        out.append("1" if class_of_id(qid_clean) == class_of_id(tid_clean) else "-1")
     return out
 
 
 def parse_bagel(score_file, homo_info_file, out_path, method, type_suffix,
                 unclassified=False, max_hits=None):
-    """Parse one BAGEL search table, labelling hits from bagel_class.txt."""
-    homo_dict = dict(zip(*[pd.read_csv(homo_info_file, sep="\t", header=0)[c]
-                           for c in ("ids", "class")]))
+    homo_dict = class_lookup(homo_info_file)
 
     if method == "tmvec":
         df = pd.read_csv(score_file, sep="\t", header=0).rename(
@@ -448,13 +461,13 @@ def blastp_densify_bagel(real, decoy, query_fasta, target_fasta, class_file,
     """Densify sparse BLASTp output into a full query x target table for BAGEL."""
     query_ids = load_ids(query_fasta)
     target_ids = load_ids(target_fasta)
-    cls = load_class_map(class_file)
+    cls = class_lookup(class_file)
     nq, nt = len(query_ids), len(target_ids)
     q2i = {v: i for i, v in enumerate(query_ids)}
     t2i = {v: i for i, v in enumerate(target_ids)}
 
-    qcls = np.array([cls.get(q, "__NA_Q__") for q in query_ids], dtype=object)
-    tcls = np.array([cls.get(t, "__NA_T__") for t in target_ids], dtype=object)
+    qcls = np.array([cls(q) or "__NA_Q__" for q in query_ids], dtype=object)
+    tcls = np.array([cls(t) or "__NA_T__" for t in target_ids], dtype=object)
     homo = np.where(qcls[:, None] == tcls[None, :], 1, -1).astype(np.int8)
 
     real_mat = pad_rows(fill_matrix(real, q2i, t2i, "", nq, nt), eps, fallback)
@@ -507,11 +520,13 @@ def main():
     p.add_argument("--out-real", required=True)
     p.add_argument("--out-decoy", required=True)
 
-    p = sub.add_parser("parse-bagel", help="single-file parse using bagel_class.txt labels")
+    p = sub.add_parser("parse-bagel", help="single-file parse, labelled by BAGEL class")
     p.add_argument("--method", required=True, choices=["plm", "tmvec", "dhr", "blastp"])
     p.add_argument("--score-file", required=True)
     p.add_argument("--out-path", required=True)
-    p.add_argument("--homo-info", default=os.path.join(DEFAULT_DATA_DIR, "bagel_class.txt"))
+    p.add_argument("--homo-info", default=None,
+                   help="optional id<TAB>class table; by default the class is read "
+                        "off the id (`89.1;Name` -> class 1)")
     p.add_argument("--type-suffix", default="",
                    help="decoy tag to strip before the class lookup, WITHOUT the leading "
                         "underscore (e.g. `mkv`, which strips `_mkv...`)")
@@ -523,7 +538,8 @@ def main():
     p.add_argument("--decoy", required=True)
     p.add_argument("--query-fasta", default="data/putative.fa")
     p.add_argument("--target-fasta", default="data/class_all.fa")
-    p.add_argument("--class-file", default="data/bagel_class.txt")
+    p.add_argument("--class-file", default=None,
+                   help="optional id<TAB>class table; default: derive from the id")
     p.add_argument("--decoy-suffix", default="_shuf",
                    help="literal id suffix, WITH the leading underscore (e.g. `_mkv2`)")
     p.add_argument("--eps", type=float, default=1e-4)

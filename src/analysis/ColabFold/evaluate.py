@@ -9,11 +9,12 @@ import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATASETS = ("astral", "ur50")
-RESULTS_DIR = {"astral": PROJECT_ROOT / "results" / "ColabFold" / "astral_db",
-               "ur50": PROJECT_ROOT / "results" / "ur50_exp"}
+# the run tree is derived data; only the figures go to results/
+RESULTS_DIR = {"astral": PROJECT_ROOT / "data" / "ColabFold" / "astral_db",
+               "ur50": PROJECT_ROOT / "data" / "ColabFold" / "ur50_exp"}
 DATA_DIR = PROJECT_ROOT / "data"
-PLOT_DATA_DIR = {"astral": DATA_DIR / "plot_data" / "ColabFold" / "astral_db",
-                 "ur50": DATA_DIR / "plot_data" / "ColabFold" / "ur50_db"}
+PLOT_DATA_DIR = {"astral": DATA_DIR / "ColabFold" / "plot_data" / "astral_db",
+                 "ur50": DATA_DIR / "ColabFold" / "plot_data" / "ur50_db"}
 
 LIBS = PROJECT_ROOT / "libs"
 TMALIGN = LIBS / "dplm" / "analysis" / "TMalign"
