@@ -454,7 +454,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--caliper-dir", type=Path,
                    default=PROJECT_ROOT / "data" / "plot_data" / "core")
     p.add_argument("--caliper-decoy", default=None)
-    p.add_argument("--caliper-suffix", default="_tau0.25")
+    p.add_argument("--caliper-suffix", default="")
     p.add_argument("--tag", default=None)
     p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
     p.add_argument("--plot-dir", type=Path, default=None,

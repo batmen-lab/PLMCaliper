@@ -99,7 +99,7 @@ def build_or_load_embeddings(fasta, db_out, device):
 
 
 def run_coords(out_dir, putative_fa, class_all_fa, *, seed, perplexity, init,
-               learning_rate, scale, device, force):
+               learning_rate, scale, device, force, l2_normalize=True):
     out_dir.mkdir(parents=True, exist_ok=True)
     targets = [out_dir / "X_2d_all.npy", out_dir / "seqs_all.npy", out_dir / "labels_all.npy"]
     if all(t.exists() for t in targets) and not force:
@@ -112,6 +112,12 @@ def run_coords(out_dir, putative_fa, class_all_fa, *, seed, perplexity, init,
 
     X = np.vstack([emb_p, emb_c])
     ids = ids_p + ids_c
+
+    # The published map was built from unit-length TM-Vec vectors: data/*_embeddings.npy
+    # in the source tree match db.npy row-normalised, to float32. TM-Vec scores by cosine
+    # similarity, so the norms carry no signal anyway.
+    if l2_normalize:
+        X = X / np.linalg.norm(X, axis=1, keepdims=True)
 
     df, code = load_id2class_codes()
     id2class = dict(zip(df["ids"].astype(str), code))
@@ -445,11 +451,20 @@ def build_parser():
     ap.add_argument("--star-size", type=float, default=SUMMARY_STAR_SIZE)
     ap.add_argument("--putative-fa", type=Path, default=DATA_DIR / "putative.fa")
     ap.add_argument("--class-all-fa", type=Path, default=DATA_DIR / "class_all.fa")
-    ap.add_argument("--seed", type=int, default=123)
-    ap.add_argument("--perplexity", type=float, default=30.0)
-    ap.add_argument("--init", default="pca", choices=("pca", "random"))
-    ap.add_argument("--learning-rate", default="auto")
-    ap.add_argument("--no-scale", action="store_true")
+    # These are the settings the published bagel map was computed with:
+    # TSNE(n_components=2, perplexity=15, random_state=0) on the raw TM-Vec
+    # embeddings, so init/learning_rate are sklearn's pre-1.2 defaults and the
+    # features are not standardised. The coordinates themselves are not
+    # bit-reproducible -- the TM-Vec embeddings have drifted since, and
+    # sklearn's t-SNE has changed -- so the map is equivalent, not identical.
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--perplexity", type=float, default=15.0)
+    ap.add_argument("--init", default="random", choices=("pca", "random"))
+    ap.add_argument("--learning-rate", default=200.0)
+    ap.add_argument("--scale", action="store_true",
+                    help="standardise the embeddings first (the published map did not)")
+    ap.add_argument("--no-l2", action="store_true",
+                    help="skip the unit-length normalisation the published map used")
     ap.add_argument("--device", default="gpu", choices=("gpu", "cpu"))
     return ap
 
@@ -460,8 +475,8 @@ def main():
     if args.stage in ("all", "coords"):
         run_coords(args.coords_dir, args.putative_fa, args.class_all_fa,
                    seed=args.seed, perplexity=args.perplexity, init=args.init,
-                   learning_rate=args.learning_rate, scale=not args.no_scale,
-                   device=args.device, force=args.force)
+                   learning_rate=args.learning_rate, scale=args.scale,
+                   device=args.device, force=args.force, l2_normalize=not args.no_l2)
     if args.stage in ("all", "prep"):
         run_prep(args.data_dir, args.methods, args.decoy_method,
                  args.coords_dir, args.scan_dir)

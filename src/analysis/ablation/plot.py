@@ -280,7 +280,6 @@ def load_curve_data(data_dir: Path, tag: str, prefix: str = "",
 
 
 def plot_combo(agg: pd.DataFrame, box: pd.DataFrame, pbox: pd.DataFrame, abox: pd.DataFrame,
-               tau_sfx: str,
                plot_dir: Path, fig_tag: str, *, search_label: str) -> None:
     q_levels = agg["q"].to_numpy()
 
@@ -303,7 +302,7 @@ def plot_combo(agg: pd.DataFrame, box: pd.DataFrame, pbox: pd.DataFrame, abox: p
     ax.set_ylim(0, max(top * 1.12, 1.05))
     apply_bold_labels(ax, "Target FDR Level", "Real FDR", f"FDR Control ({search_label})")
     place_external_legend(ax, fig)
-    out = plot_dir / f"{fig_tag}_FDR_boxplots{tau_sfx}.pdf"
+    out = plot_dir / f"{fig_tag}_FDR_boxplots.pdf"
     save_figure(out)
     plt.close(fig)
     print(f"[OK] {out}")
@@ -325,7 +324,7 @@ def plot_combo(agg: pd.DataFrame, box: pd.DataFrame, pbox: pd.DataFrame, abox: p
     ax.set_ylim(0, 1.12)
     apply_bold_labels(ax, "Target FDR Level", "Average Power", f"Power ({search_label})")
     place_external_legend(ax, fig)
-    out = plot_dir / f"{fig_tag}_Power{tau_sfx}.pdf"
+    out = plot_dir / f"{fig_tag}_Power.pdf"
     save_figure(out)
     plt.close(fig)
     print(f"[OK] {out}")
@@ -355,7 +354,7 @@ def plot_combo(agg: pd.DataFrame, box: pd.DataFrame, pbox: pd.DataFrame, abox: p
         ax.set_yticks([t for t in ax.get_yticks() if lo - 1e-9 <= t <= 1.0 + 1e-9])
         apply_bold_labels(ax, "Target FDR Level", "Accuracy", f"Accuracy ({search_label})")
         place_external_legend(ax, fig)
-        out = plot_dir / f"{fig_tag}_Accuracy{tau_sfx}.pdf"
+        out = plot_dir / f"{fig_tag}_Accuracy.pdf"
         save_figure(out)
         plt.close(fig)
         print(f"[OK] {out}")
@@ -369,7 +368,7 @@ def plot_combo(agg: pd.DataFrame, box: pd.DataFrame, pbox: pd.DataFrame, abox: p
     apply_bold_labels(ax, "Target FDR Level", "Number",
                       f"Number of Valid Queries ({search_label})")
     place_external_legend(ax, fig, ncol=1)
-    out = plot_dir / f"{fig_tag}_ValidCount{tau_sfx}.pdf"
+    out = plot_dir / f"{fig_tag}_ValidCount.pdf"
     save_figure(out)
     plt.close(fig)
     print(f"[OK] {out}")
@@ -386,8 +385,6 @@ def parse_args() -> argparse.Namespace:
                    help="weight label in the tag; pass '' for the NoCalib baseline")
     p.add_argument("--file-prefix", default="",
                    help="filename prefix for inputs and figures, e.g. 'NoCalib_'")
-    p.add_argument("--tau", type=float, default=0.25,
-                   help="appended to every figure name; None to omit")
     p.add_argument("--q-step", type=float, default=None,
                    help="keep only thresholds that are multiples of this step "
                         "(e.g. 0.1 -> 0.1, 0.2, ..., 0.9); default keeps the full grid")
@@ -406,7 +403,6 @@ def main() -> None:
         sub = f"figures_step{args.q_step:g}" if args.q_step else "figures"
         args.plot_dir = args.data_dir / sub
     args.plot_dir.mkdir(parents=True, exist_ok=True)
-    tau_sfx = f"_tau{args.tau:g}" if args.tau is not None else ""
     combos = ([(args.tag, None)] if args.tag
               else list(product(args.search_methods, args.decoy_methods)))
     print(f"[info] data={args.data_dir}  out={args.plot_dir}  combos={len(combos)}")
@@ -425,7 +421,7 @@ def main() -> None:
             agg, box, pbox, abox = load_curve_data(args.data_dir, tag, prefix=args.file_prefix)
             agg, box = filter_q_step(agg, box, args.q_step)
             print(f"\n>>> {combo}")
-            plot_combo(agg, box, pbox, abox, tau_sfx, args.plot_dir, fig_tag,
+            plot_combo(agg, box, pbox, abox, args.plot_dir, fig_tag,
                        search_label=search_display(search))
         except Exception as exc:
             failed += 1

@@ -1,32 +1,5 @@
 #!/usr/bin/env bash
 # Run the conformal-prediction benchmark: compute, then plot.
-#
-#   bash run_conformal.sh                                  # blastp, random split
-#   bash run_conformal.sh -m dhr -split_level fold
-#   bash run_conformal.sh -m "plm tmvec" -l superfamily    # several methods
-#   bash run_conformal.sh -m dhr -s plot -n                # replot only, dry run
-#
-#   -m LIST   search methods from plm, tmvec, dhr_postprocess,
-#             blastp_postprocessed (default: blastp_postprocessed)
-#   -split_level L | --split-level L | -l L
-#             held-out level: random, fold, superfamily, family (default: random)
-#   -c N      calibration set size (default 1000)
-#   -t N      trials per q level (default 5)
-#   -o DIR    derived data: trial tables + matrix cache
-#             (default <repo>/data/conformal)
-#   -f DIR    figures (default <repo>/results/conformal)
-#   -s LIST   steps from compute,plot (default: both)
-#   -n        dry run: print the commands, run nothing
-#   -h        this help
-#
-# `dhr` and `blastp` are shorthand for the postprocessed tables the benchmark
-# reads. Both steps run once per method, and -c/-t are passed to both so the
-# figures describe the run they came from.
-#
-# Everything this experiment derives lands under data/conformal, and only the
-# figures under results/conformal. The retrieval score tables it reads stay in
-# data/ itself, because the other experiments read the same files.
-# Run this after `conda activate plmcaliper`; set PYTHON=... to override.
 set -uo pipefail
 
 CB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -1,43 +1,5 @@
 #!/usr/bin/env bash
 # Run the FDR-guided MSA / structure-prediction experiment end to end.
-# Once: tsv. Per method: db -> search -> calibration -> msa -> predict -> evaluate.
-# Then plot once, over every method at the same time.
-#
-#   bash run_colabfold.sh                          # all three methods, all steps
-#   bash run_colabfold.sh -m "dhr plm"             # one subset
-#   bash run_colabfold.sh -m dhr -s evaluate,plot  # redo the tail only
-#   bash run_colabfold.sh -n                       # print the commands, run nothing
-#
-#   -m LIST   search methods from plm, tmvec, dhr_postprocess (default: all three)
-#   -d NAME   dataset: ur50 or astral (default ur50)
-#   -j N      jackhmmer iterations, also names the iter<N>/ run dir (default 1)
-#   -g LIST   GPUs for the db step (default 0,1,2,3)
-#   -G N      single GPU for the search step (default 0)
-#   -f DIR    figures (default <repo>/results/ColabFold)
-#   -s LIST   steps from tsv,db,search,calibration,msa,predict,evaluate,plot
-#             (default: all eight)
-#   -n        dry run: print the commands, run nothing
-#   -h        this help
-#
-# `dhr` is shorthand for `dhr_postprocess`. `tsv` and `plot` run once; everything
-# between them runs once per method. `plot` takes the whole method list at once,
-# because plot.py compares the methods in a single figure.
-#
-# `tsv` rewrites data/uniref50/uniref50.fasta as the id<TAB>sequence table the
-# pipeline shards and streams (build_data.py refuses to start without it). It is
-# skipped when that table already exists -- delete it to rebuild.
-#
-# Keep dhr ahead of plm/tmvec: the decoy query table is written by the dhr search
-# stage, and the other two only read it.
-#
-# The whole run tree (MSAs, predictions, metrics) is derived data and lives under
-# data/ColabFold; only the figures go to results/ColabFold. The UniRef50 database
-# and the retrieval score tables stay in data/ itself.
-#
-# build_data.py re-invokes itself inside each retrieval environment, so
-# src/PLM_searching_cmds/.env has to be loaded first; this sources it for you if
-# BASE_DIR is not already set. The predict step additionally needs localcolabfold.
-# Run this after `conda activate plmcaliper`; set PYTHON=... to override.
 set -uo pipefail
 
 CF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

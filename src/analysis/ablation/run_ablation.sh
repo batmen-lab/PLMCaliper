@@ -1,29 +1,5 @@
 #!/usr/bin/env bash
 # Run the decoy/calibration ablation end to end: calibrate -> fdr -> plot.
-#
-#   bash run_ablation.sh all_ablation                 every search method x every decoy design
-#   bash run_ablation.sh -m "plm dhr" -d "shuf mkv"   one explicit sub-grid
-#   bash run_ablation.sh -m plm -d shuf -d rev        -m/-d repeat, or take a quoted list
-#
-#   -m LIST   search methods: plm, tmvec, dhr_postprocess, blastp_postprocessed
-#   -d LIST   decoy designs:  shuf, rev, dplm, mkv2 (also extended_shuf, extended_mkv2)
-#   -j N      worker processes for the FDR step (default 4)
-#   -t TAU    pinball tau; goes to calibrate and into the figure names (default 0.25)
-#   -o DIR    derived data: calibrated tables + plotting CSVs
-#             (default <repo>/data/ablation)
-#   -f DIR    figures (default <repo>/results/ablation)
-#   -s LIST   steps to run, from calibrate,fdr,plot (default: all three)
-#   -n        dry run: print the commands, run nothing
-#   -h        this help
-#
-# `dhr` and `blastp` are shorthand for the postprocessed tables the ablation
-# actually reads, and `mkv` for `mkv2`. Give -m or -d alone and the other axis
-# runs in full. Set PYTHON=... to pick an interpreter; the default `python` is
-# the plmcaliper env from the README.
-#
-# Everything this experiment derives lands under data/ablation, and only the
-# figures under results/ablation. The retrieval score tables it reads stay in
-# data/ itself, because the other experiments read the same files.
 set -uo pipefail
 
 ABL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -154,7 +130,7 @@ plot_status=0
 if want plot; then
     step "plot" "$PY" "$ABL_DIR/plot.py" \
         --search-methods "${SEARCH[@]}" --decoy-methods "${DECOY[@]}" \
-        --tau "$TAU" --data-dir "$OUT_DIR/plot_data" --plot-dir "$FIG_DIR" || plot_status=$?
+        --data-dir "$OUT_DIR/plot_data" --plot-dir "$FIG_DIR" || plot_status=$?
 fi
 
 echo

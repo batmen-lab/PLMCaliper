@@ -30,7 +30,7 @@ QUERY_NAME, TARGET_NAME, WEIGHT_METHOD = "putative", "class_all", "AdaptiveBell"
 TIE_RTOL = 1e-9
 STAR_Z = 100
 
-DEFAULT_DATA_DIR = BAGEL_PLOT_DIR / "extended_mkv2_tau025" / "tsne_per_query"
+DEFAULT_DATA_DIR = BAGEL_PLOT_DIR / "tsne_per_query"
 DEFAULT_CUTOFF = 0.6
 Q_LEVELS_FALLBACK = [0.10, 0.20, 0.30, 0.40, 0.50, 0.60]
 FIGURE_KINDS = ("bar", "map", "grid")

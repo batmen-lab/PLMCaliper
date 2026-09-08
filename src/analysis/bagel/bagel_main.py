@@ -1478,12 +1478,6 @@ def run_discover(argv):
         print(f"[OK] Legacy Q-scan summary -> {legacy_scan}")
         print(f"[OK] Legacy Q-scan accepted hits -> {legacy_hits_scan}")
 
-    out_png = os.path.join(
-        out_dir,
-        f"putative_discovery_scan_{args.search_method}_{args.decoy_method}.png",
-    )
-    plot_discovery_q_scan(df_scan, out_png)
-
     print("\n[DONE] Discovery complete.")
 
 

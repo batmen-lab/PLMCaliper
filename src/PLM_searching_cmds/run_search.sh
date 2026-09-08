@@ -201,13 +201,22 @@ build_db
 export PATH="$(dirname "$EVALPLMS_PYTHON_PATH"):$PATH"
 
 if [[ "$TARGET_MODE" == "scop" ]]; then
-    python "$BASE_DIR/src/utils/process_searching_score.py" parse \
-        --data_type "$METHOD" \
-        --input_path "$OUTPUT_DIR" \
-        --save_path "$DATA_DIR" \
-        --max_hits "$PARSER_KHITS" \
-        --target-fasta "$LABEL_FASTA"
-    PARSED="$DATA_DIR/parsed_result/${OUT_TAG}_hit${PARSER_KHITS}.txt"
+    # One score table per (method, query, target), in data/ -- the same layout the
+    # BAGEL branch below writes and the calibration/analysis code reads. The parser
+    # stages it under parsed_result/ first, so move it into place afterwards.
+    PARSED="$DATA_DIR/result_${METHOD}_${query_basename}_${target_basename}.txt"
+    if [[ -s "$PARSED" ]]; then
+        echo "[run_search] score table already exists, skipping parse: $PARSED"
+    else
+        python "$BASE_DIR/src/utils/process_searching_score.py" parse \
+            --data_type "$METHOD" \
+            --input_path "$OUTPUT_DIR" \
+            --save_path "$DATA_DIR" \
+            --max_hits "$PARSER_KHITS" \
+            --target-fasta "$LABEL_FASTA"
+        mv "$DATA_DIR/parsed_result/${OUT_TAG}_hit${PARSER_KHITS}.txt" "$PARSED"
+        rmdir "$DATA_DIR/parsed_result" 2>/dev/null || true
+    fi
 else
     # decoy suffix to strip before the id's BAGEL class is read off it
     case "$query_basename" in

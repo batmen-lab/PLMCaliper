@@ -1,38 +1,5 @@
 #!/usr/bin/env bash
-# Run the BAGEL4 bacteriocin experiment end to end, once per search method:
-# calibrate -> discover -> tsne prep -> tsne plot -> addon figures.
-#
-#   bash run_bagel.sh -target_fdr 0.20
-#   bash run_bagel.sh --target-fdr 0.20 -m "plm tmvec"
-#   bash run_bagel.sh -target_fdr 0.20 -s prep,plot,addon      # figures only
-#   bash run_bagel.sh -target_fdr 0.20 -s calibrate --force    # recalibrate
-#
-#   -target_fdr F | --target-fdr F | -t F
-#             FDR level of the single-level discovery table (default 0.20)
-#   -m LIST   search methods from plm, tmvec, dhr, blastp (default: all four)
-#   -d NAME   decoy design (default extended_mkv2)
-#   -x SFX    decoy id suffix (default: derived from -d)
-#   -o DIR    derived data: calibrated tables, discovery tables, t-SNE inputs
-#             (default <repo>/data/bagel)
-#   -f DIR    figures (default <repo>/results/bagel)
-#   -s LIST   steps from calibrate,discover,prep,plot,addon (default: all five)
-#   --force   recalibrate even when the calibrated tables already exist
-#   -n        dry run: print the commands, run nothing
-#   -h        this help
-#
-# It starts from the retrieval score tables in data/, so run the search step
-# first (plus dhr-postprocess / blastp-densify for those two methods). Those
-# tables stay in data/ itself, because the other experiments read the same
-# files; everything this experiment derives lands under data/bagel, and only
-# the figures under results/bagel.
-#
-# `tsne.py coords` writes X_2d_all/seqs_all/labels_all.npy into -o as well, so
-# point it at the same directory when you run that step by hand.
-#
-# --target-fdr only sets the level of the single-level discovery table. The
-# t-SNE and addon figures scan the fixed q grid (0.10 .. 0.60) that tsne.py
-# defines, so they do not move with it.
-# Run this after `conda activate plmcaliper`; set PYTHON=... to override.
+# Run the BAGEL4 bacteriocin experiment end to end
 set -uo pipefail
 
 BAGEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
