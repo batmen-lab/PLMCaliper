@@ -57,7 +57,7 @@ PLMCaliper/
 │   ├── putative.fa           # BAGEL4 putative bacteriocins
 │   └── putative.tsv
 │
-├── env/                      # conda env specs, one .yml per method
+├── requirements/             # pip requirements per search env
 │
 ├── libs/
 │

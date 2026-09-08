@@ -4,7 +4,7 @@ set -uo pipefail
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(cd "$SRC_ROOT/.." && pwd)"
 ENV_FILE="$BASE_DIR/src/PLM_searching_cmds/.env"
-ENV_YML_DIR="$BASE_DIR/env"
+REQ_DIR="$BASE_DIR/requirements"
 CREATE=0; PRINT_ONLY=0; GPU_OVERRIDE=""
 while [ $# -gt 0 ]; do
   a="$1"
@@ -37,20 +37,42 @@ CONDA_ROOT="$("$CONDA_BIN" info --base 2>/dev/null)"
 echo "[setup] conda: $CONDA_BIN  (envs under $CONDA_ROOT/envs)"
 
 # ---- the environments ------------------------------------------------------
+# Each retriever env is conda for the interpreter, pip for everything else:
+# torch and faiss ship as wheels, and conda's pytorch channel no longer solves.
 CREATE_ENVS=(plmsearch dhr tmvec)
 ENVS=(plmcaliper "${CREATE_ENVS[@]}")
-BLAST_PKG="blast=2.17.0"   # BLASTp baseline only; matches env/plmcaliper.yml
+ENV_PY_plmsearch=3.11
+ENV_PY_dhr=3.11
+ENV_PY_tmvec=3.10
+BLAST_PKG="blast=2.17.0"   # BLASTp baseline only; matches requirements.txt
 
 if [ "$CREATE" = 1 ]; then
   for e in "${CREATE_ENVS[@]}"; do
+    req="$REQ_DIR/$e.txt"
+    pyver="ENV_PY_$e"; pyver="${!pyver}"
     if [ -x "$CONDA_ROOT/envs/$e/bin/python" ]; then
       echo "[setup] env '$e' already exists, skipping"
-    elif [ -f "$ENV_YML_DIR/$e.yml" ]; then
-      echo "[setup] creating env '$e' from env/$e.yml ..."
-      "$CONDA_BIN" env create -f "$ENV_YML_DIR/$e.yml" -n "$e" || \
-        echo "[setup] WARNING: env '$e' failed to build" >&2
-    else
-      echo "[setup] WARNING: env/$e.yml missing, cannot create '$e'" >&2
+      continue
+    elif [ ! -f "$req" ]; then
+      echo "[setup] WARNING: requirements/$e.txt missing, cannot create '$e'" >&2
+      continue
+    fi
+    echo "[setup] creating env '$e' (python $pyver) ..."
+    if ! "$CONDA_BIN" create -n "$e" "python=$pyver" -y; then
+      echo "[setup] WARNING: env '$e' failed to build" >&2
+      continue
+    fi
+    echo "[setup] installing requirements/$e.txt into '$e' ..."
+    if ! "$CONDA_ROOT/envs/$e/bin/python" -m pip install -r "$req"; then
+      echo "[setup] WARNING: requirements/$e.txt failed to install into '$e'" >&2
+      continue
+    fi
+    # TM-Vec is imported from libs/, so it has to be on that env's path.
+    if [ "$e" = tmvec ] && [ -d "$BASE_DIR/libs/tm-vec-master" ]; then
+      echo "[setup] installing vendored tm-vec into '$e' ..."
+      "$CONDA_ROOT/envs/$e/bin/python" -m pip install --no-deps \
+        -e "$BASE_DIR/libs/tm-vec-master" deepblast==1.0.2 || \
+        echo "[setup] WARNING: vendored tm-vec failed to install into '$e'" >&2
     fi
   done
   # BLASTp shares the plmcaliper env, but BLAST+ is an external binary that
@@ -79,7 +101,7 @@ for e in "${ENVS[@]}"; do
   elif [ "$e" = plmcaliper ]; then
     note "$e" "MISSING"
     need "conda create -n plmcaliper python=3.11, then python -m pip install -r requirements.txt"
-  else note "$e" "MISSING"; need "conda env create -f env/$e.yml -n $e"; fi
+  else note "$e" "MISSING"; need "bash src/setup.sh --create-envs   (builds $e from requirements/$e.txt)"; fi
 done
 
 # ---- GPUs ------------------------------------------------------------------
@@ -146,6 +168,18 @@ for d in Dense-Homolog-Retrieval-main PLMSearch-main tm-vec-master; do
 done
 QJACK="$BASE_DIR/libs/Dense-Homolog-Retrieval-main/bin/qjackhmmer"
 [ -x "$QJACK" ] || need "qjackhmmer not executable at libs/.../bin/qjackhmmer"
+
+# DHR ships do_retrieval.py with its checkpoint directory hardcoded to an
+# absolute path from the machine it was built on, so retrieval cannot find
+# dhr2_ckpt anywhere else. Rewrite it to resolve next to the script instead.
+# Idempotent: the grep only matches the unpatched absolute-path form.
+DHR_RETRIEVAL="$BASE_DIR/libs/Dense-Homolog-Retrieval-main/do_retrieval.py"
+if [ -f "$DHR_RETRIEVAL" ] && grep -qE '^ckpt_path *= *"/.*dhr2_ckpt/?"' "$DHR_RETRIEVAL"; then
+  cp -n "$DHR_RETRIEVAL" "$DHR_RETRIEVAL.orig"
+  sed -i -E 's#^ckpt_path *= *"/.*dhr2_ckpt/?"#ckpt_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dhr2_ckpt")#' \
+    "$DHR_RETRIEVAL"
+  echo "[setup] patched libs/.../do_retrieval.py: hardcoded dhr2_ckpt path -> relative (kept .orig)"
+fi
 
 # ---- write .env ------------------------------------------------------------
 render() {

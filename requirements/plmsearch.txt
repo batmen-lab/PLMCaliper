@@ -1,0 +1,14 @@
+# PLMSearch -- the `run_search.sh -m plm` environment (python 3.11).
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch==2.5.1
+numpy==2.2.6
+pandas==2.2.3
+scikit-learn==1.8.0
+scipy==1.17.1
+biopython==1.85
+tqdm==4.70.0
+fair-esm==2.0.0
+transformers==4.56.0
+logzero==1.7.0
+matplotlib==3.10.6
+seaborn==0.13.2

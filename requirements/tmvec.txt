@@ -1,0 +1,16 @@
+# TM-Vec / DeepBLAST -- the `run_search.sh -m tmvec` environment (python 3.10).
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch==2.5.1
+pytorch-lightning==2.5.4
+torchmetrics==1.8.1
+faiss-gpu-cu12==1.9.0.post1
+numpy==1.26.4
+pandas==2.3.2
+scipy==1.15.2
+scikit-learn==1.7.1
+biopython==1.85
+matplotlib==3.10.6
+numba==0.61.2
+pysam==0.23.3
+transformers==4.44.2
+sentencepiece==0.2.1
