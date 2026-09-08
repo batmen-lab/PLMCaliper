@@ -483,10 +483,6 @@ def blastp_densify_bagel(real, decoy, query_fasta, target_fasta, class_file,
 
 DEFAULT_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
-BASEDB_FASTA = {
-    'SCOPe40': os.path.join(DEFAULT_DATA_DIR, "astral-scopedom-seqres-gd-sel-gs-bib-40-2.08.fa"),
-    'SCOPe95': os.path.join(DEFAULT_DATA_DIR, "astral-scopedom-seqres-gd-sel-gs-bib-95-2.08.fa"),
-}
 
 
 def main():
@@ -499,7 +495,8 @@ def main():
     p.add_argument("--input_path", type=str, required=True, help="Directory of raw search output")
     p.add_argument("--save_path", type=str, required=True, help="Parsed result goes to <save_path>/parsed_result/")
     p.add_argument("--max_hits", type=int, default=1000, help="Keep how many hits per query")
-    p.add_argument("--basedb", type=str, required=True, help="SCOPe40 | SCOPe95")
+    p.add_argument("--target-fasta", type=str, required=True,
+                   help="the target DB FASTA; SCOP labels are read from its headers")
 
     p = sub.add_parser("dhr-postprocess", help="flip DHR distance to a larger-is-better score")
     p.add_argument("--data-dir", default=DEFAULT_DATA_DIR)
@@ -550,10 +547,8 @@ def main():
     args = ap.parse_args()
 
     if args.stage == "parse":
-        if args.basedb not in BASEDB_FASTA:
-            raise ValueError(f"Unsupported basedb: {args.basedb}")
         parse_search_result_by_type(args.input_path, args.save_path, args.data_type,
-                                    BASEDB_FASTA[args.basedb], args.max_hits)
+                                    args.target_fasta, args.max_hits)
     elif args.stage == "dhr-postprocess":
         dhr_postprocess(args.data_dir, args.query, args.db,
                         args.decoy or ["extended_shuf"], args.ceiling)

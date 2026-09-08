@@ -45,10 +45,16 @@ DEFAULT_KHITS=$TARGET_N
 # SCOP targets carry SCOP labels in the FASTA header; anything else (the BAGEL
 # bacteriocin sets) get their homology labels from the BAGEL class encoded in the id.
 case "$(basename "$TARGET_PATH" "$QUERY_EXT")" in
-    astral95) TARGET_MODE=scop; BASEDB="SCOPe95" ;;
-    astral*)  TARGET_MODE=scop; BASEDB="SCOPe40" ;;
+    astral95) TARGET_MODE=scop ;;
+    astral*)  TARGET_MODE=scop ;;
     *)        TARGET_MODE=bagel ;;
 esac
+
+LABEL_FASTA="$TARGET_PATH"
+[[ "$LABEL_FASTA" == *.tsv ]] && LABEL_FASTA="${LABEL_FASTA%.tsv}.fa"
+if [[ "$TARGET_MODE" == "scop" && ! -s "$LABEL_FASTA" ]]; then
+    echo "[run_search] need $LABEL_FASTA for the SCOP labels of $TARGET_PATH" >&2; exit 1
+fi
 
 DB_KHITS="${DB_KHITS:-$DEFAULT_KHITS}"
 PARSER_KHITS="${PARSER_KHITS:-$DEFAULT_KHITS}"
@@ -200,7 +206,7 @@ if [[ "$TARGET_MODE" == "scop" ]]; then
         --input_path "$OUTPUT_DIR" \
         --save_path "$DATA_DIR" \
         --max_hits "$PARSER_KHITS" \
-        --basedb "$BASEDB"
+        --target-fasta "$LABEL_FASTA"
     PARSED="$DATA_DIR/parsed_result/${OUT_TAG}_hit${PARSER_KHITS}.txt"
 else
     # decoy suffix to strip before the id's BAGEL class is read off it
