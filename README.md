@@ -279,17 +279,16 @@ bash src/PLM_searching_cmds/run_search.sh \
 ```
 
 The figures place every sequence on a shared t-SNE map, whose coordinates come
-from TM-Vec embeddings. Install the vendored TM-Vec source into its environment:
+from TM-Vec embeddings. Download the published t-SNE layout into `data/bagel/`:
 
 ```bash
-conda run -n tmvec python -m pip install --no-deps -e libs/tm-vec-master deepblast==1.0.2
-```
+python -m pip install -U "huggingface_hub[cli]"
 
-Then compute the coordinates once, for the whole dataset:
-
-```bash
-conda run -n tmvec python src/analysis/bagel/tsne.py coords --device gpu \
-  --coords-dir data/bagel
+mkdir -p data/bagel
+hf download yifanyang993/PLMCaliper --repo-type dataset \
+  --include "tsne/*" --local-dir data/bagel
+mv data/bagel/tsne/*.npy data/bagel/ && rmdir data/bagel/tsne
+rm -rf data/bagel/.cache
 ```
 
 Run the experiment with:
@@ -314,7 +313,7 @@ The pipeline includes data preparation, MSA construction, PLM-Caliper calibratio
 
 The search database is UniRef50, available from the [UniProt FTP site](https://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref50/uniref50.fasta.gz). The release used in the paper holds 38,794,121 sequences. Place it at `data/uniref50/uniref50.fasta`.
 
-Install the dependencies for this experiment if you have not already run the BAGEL experiment:
+Install the dependencies for this experiment:
 
 ```bash
 conda activate plmcaliper
