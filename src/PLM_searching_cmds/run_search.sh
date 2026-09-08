@@ -21,19 +21,33 @@ done
 
 # OUT_TAG feeds the parser's output filename -- keep these strings exact.
 case "$METHOD" in
-    plm)    ENV_PREFIX=PLMSEARCH; QUERY_EXT=".fa";  DEFAULT_KHITS=15177; OUT_TAG="result_plm" ;;
-    tmvec)  ENV_PREFIX=TMVEC;     QUERY_EXT=".fa";  DEFAULT_KHITS=3000;  OUT_TAG="result_tmvec" ;;
-    dhr)    ENV_PREFIX=DHR;       QUERY_EXT=".tsv"; DEFAULT_KHITS=791;   OUT_TAG="result_dhr" ;;
-    blastp) ENV_PREFIX=BLASTP;    QUERY_EXT=".fa";  DEFAULT_KHITS=30354; OUT_TAG="result_blastp" ;;
+    plm)    ENV_PREFIX=PLMSEARCH; QUERY_EXT=".fa";  OUT_TAG="result_plm" ;;
+    tmvec)  ENV_PREFIX=TMVEC;     QUERY_EXT=".fa";  OUT_TAG="result_tmvec" ;;
+    dhr)    ENV_PREFIX=DHR;       QUERY_EXT=".tsv"; OUT_TAG="result_dhr" ;;
+    blastp) ENV_PREFIX=BLASTP;    QUERY_EXT=".fa";  OUT_TAG="result_blastp" ;;
     *) echo "[run_search] unknown method: $METHOD (expected plm|tmvec|dhr|blastp)" >&2; exit 1 ;;
 esac
+
+[[ -s "$TARGET_PATH" ]] || {
+    echo "[run_search] target not found or empty: $TARGET_PATH" >&2; exit 1; }
+
+# Hits to keep per query: the whole target DB, so a database of any size works
+# without hand-tuning DB_KHITS/PARSER_KHITS. DHR reads a `id<TAB>seq` .tsv; the
+# others read FASTA.
+case "$TARGET_PATH" in
+    *.tsv) TARGET_N=$(grep -c . "$TARGET_PATH") ;;
+    *)     TARGET_N=$(grep -c '^>' "$TARGET_PATH") ;;
+esac
+[[ "$TARGET_N" -gt 0 ]] || {
+    echo "[run_search] no sequences found in $TARGET_PATH" >&2; exit 1; }
+DEFAULT_KHITS=$TARGET_N
 
 # SCOP targets carry SCOP labels in the FASTA header; anything else (the BAGEL
 # bacteriocin sets) get their homology labels from the BAGEL class encoded in the id.
 case "$(basename "$TARGET_PATH" "$QUERY_EXT")" in
     astral95) TARGET_MODE=scop; BASEDB="SCOPe95" ;;
     astral*)  TARGET_MODE=scop; BASEDB="SCOPe40" ;;
-    *)        TARGET_MODE=bagel; DEFAULT_KHITS=791 ;;
+    *)        TARGET_MODE=bagel ;;
 esac
 
 DB_KHITS="${DB_KHITS:-$DEFAULT_KHITS}"
@@ -69,7 +83,7 @@ OUTPUT_DIR="$TEMP_DIR/$OUT_TAG"
 TEMP_DATA_SPLIT_DIR="$TEMP_DIR/${query_basename}_batch"
 mkdir -p "$OUTPUT_DIR"
 
-echo "[run_search] $METHOD | query=$query_basename target=$target_basename | k=$DB_KHITS"
+echo "[run_search] $METHOD | query=$query_basename target=$target_basename (${TARGET_N} seqs) | k=$DB_KHITS"
 
 build_db() {
     case "$METHOD" in

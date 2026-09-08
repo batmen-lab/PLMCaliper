@@ -142,7 +142,7 @@ fi
 echo "[setup] vendored sources under libs/"
 for d in Dense-Homolog-Retrieval-main PLMSearch-main tm-vec-master; do
   if [ -d "$BASE_DIR/libs/$d" ]; then note "$d" "ok"
-  else note "$d" "MISSING"; need "run bash src/PLM_searching_cmds/setup_retrieval_libs.sh"; fi
+  else note "$d" "MISSING"; need "unpack libs/ from PLMCaliper_data.tar.gz (https://zenodo.org/records/22436908)"; fi
 done
 QJACK="$BASE_DIR/libs/Dense-Homolog-Retrieval-main/bin/qjackhmmer"
 [ -x "$QJACK" ] || need "qjackhmmer not executable at libs/.../bin/qjackhmmer"
