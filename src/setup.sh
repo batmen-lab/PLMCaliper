@@ -181,6 +181,85 @@ if [ -f "$DHR_RETRIEVAL" ] && grep -qE '^ckpt_path *= *"/.*dhr2_ckpt/?"' "$DHR_R
   echo "[setup] patched libs/.../do_retrieval.py: hardcoded dhr2_ckpt path -> relative (kept .orig)"
 fi
 
+# DHR's do_retrieval.py asks FAISS for --num neighbours without ever checking how
+# big the database is. When --num exceeds the index, FAISS pads its answer with
+# index -1 and FLT_MAX distances, and the `df.iloc[tar_idx]` lookup then reads
+# -1 as "last row", silently attributing every pad row to the final sequence in
+# the database. A 1,000-sequence index answering the default 1,000,000-hit
+# request yields 999,000 bogus rows per query, which go on to dominate the score
+# quantiles the calibration is fitted on. Clamp the request to what the index can
+# answer, and drop any invalid row FAISS still returns.
+# Idempotent: the marker only appears in the patched form.
+if [ -f "$DHR_RETRIEVAL" ] && ! grep -q 'max_targets' "$DHR_RETRIEVAL"; then
+  DHR_PATCH_PY="${PY[dhr]:-}"
+  [ -n "$DHR_PATCH_PY" ] || DHR_PATCH_PY="${PY[plmcaliper]:-}"
+  [ -n "$DHR_PATCH_PY" ] || DHR_PATCH_PY="$(command -v python3 || command -v python || true)"
+  if [ -z "$DHR_PATCH_PY" ]; then
+    need "no python found to patch libs/.../do_retrieval.py -- create an env, then re-run src/setup.sh"
+  else
+    cp -n "$DHR_RETRIEVAL" "$DHR_RETRIEVAL.orig"
+    if "$DHR_PATCH_PY" - "$DHR_RETRIEVAL" <<'DHR_PATCH_EOF'
+import sys, pathlib
+
+path = pathlib.Path(sys.argv[1])
+src = path.read_text()
+
+PATCHES = [
+    # remember what was asked for, so the clamp can report both numbers
+    ('    tar_num = args.num\n',
+     '    requested_tar_num = args.num\n'
+     '    tar_num = requested_tar_num\n'),
+    # never ask FAISS for more neighbours than the index holds
+    ('    df = pd.read_pickle(dm_path)\n',
+     '    df = pd.read_pickle(dm_path)\n'
+     '    max_targets = min(int(index.ntotal), len(df))\n'
+     '    if max_targets <= 0:\n'
+     '        raise SystemExit("DHR database is empty; cannot retrieve targets.")\n'
+     '    if tar_num > max_targets:\n'
+     '        print("Requested %d targets but database has %d; using %d."%\n'
+     '              (requested_tar_num, max_targets, max_targets))\n'
+     '        tar_num = max_targets\n'),
+    # second line of defence: discard whatever padding still comes back
+    ('    out_file = open(out_path, "w")\n'
+     '    # out_file.write("Query,Target,Distance\\n")\n',
+     '    out_file = open(out_path, "w")\n'
+     '    # out_file.write("Query,Target,Distance\\n")\n'
+     '    invalid_faiss_distance = np.finfo(np.float32).max / 2\n'
+     '    skipped_invalid = 0\n'),
+    ('            tar_idx = idxes[j]\n',
+     '            tar_idx = idxes[j]\n'
+     '            valid = (\n'
+     '                (tar_idx >= 0)\n'
+     '                & (tar_idx < len(df))\n'
+     '                & np.isfinite(score_arr)\n'
+     '                & (score_arr < invalid_faiss_distance)\n'
+     '            )\n'
+     '            skipped_invalid += int(len(tar_idx) - valid.sum())\n'
+     '            if not valid.any():\n'
+     '                continue\n'
+     '            score_arr = score_arr[valid]\n'
+     '            tar_idx = tar_idx[valid]\n'),
+    ('    out_file.close()\n',
+     '    out_file.close()\n'
+     '    if skipped_invalid:\n'
+     '        print("Skipped %d invalid FAISS result(s)." % skipped_invalid)\n'),
+]
+
+for old, new in PATCHES:
+    if src.count(old) != 1:
+        sys.exit(f"anchor appears {src.count(old)} times, expected once: {old.strip()!r}")
+    src = src.replace(old, new)
+
+path.write_text(src)
+DHR_PATCH_EOF
+    then
+      echo "[setup] patched libs/.../do_retrieval.py: clamp FAISS k to the index size + drop pad rows"
+    else
+      need "could not patch libs/.../do_retrieval.py (unexpected upstream layout); restore it from .orig and report this"
+    fi
+  fi
+fi
+
 # ---- write .env ------------------------------------------------------------
 render() {
 cat <<EOF

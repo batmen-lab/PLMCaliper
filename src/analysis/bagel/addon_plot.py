@@ -279,7 +279,7 @@ def audit_tables(hits, detail, id2class, queries, counts, wq, tied, cutoff):
     terms = pd.DataFrame(rows).sort_values(
         ["qid", "class"], key=lambda c: c.map(_qid_number) if c.name == "qid" else c)
 
-    ref = wq.stack(dropna=True)
+    ref = wq.stack().dropna()
     got = terms.set_index(["qid", "class"])["weighted_q"].dropna()
     shared = ref.index.intersection(got.index)
     delta = float((ref.loc[shared] - got.loc[shared]).abs().max()) if len(shared) else 0.0

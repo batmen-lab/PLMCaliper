@@ -18,6 +18,8 @@ BAGEL_PLOT_DIR = DATA_DIR / "bagel"
 PLOT_DATA_DIR = BAGEL_PLOT_DIR / "tsne_per_query"
 CLASS_ALL_FA = DATA_DIR / "class_all.fa"
 PUTATIVE_FA = DATA_DIR / "putative.fa"
+IDS_NPY = BAGEL_PLOT_DIR / "seqs_all.npy"
+LABELS_NPY = BAGEL_PLOT_DIR / "labels_all.npy"
 
 TMVEC_SRC = BASE_DIR / "libs" / "tm-vec-master"
 BUILD_DB_SCRIPT = TMVEC_SRC / "scripts" / "tmvec-build-database"

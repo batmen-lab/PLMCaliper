@@ -197,12 +197,32 @@ def strip_decoy_suffix(qid, decoy_suffix):
     return qid[: -len(decoy_suffix)] if qid.endswith(decoy_suffix) else qid
 
 
+def require_unique_pair_keys(df, what, keys):
+    dup = df.duplicated(keys, keep=False)
+    if not bool(dup.any()):
+        return
+
+    examples = df.loc[dup, keys].value_counts().head(3)
+    example_text = "; ".join(
+        f"{tuple(key) if isinstance(key, tuple) else key} x{count:,}"
+        for key, count in examples.items()
+    )
+    raise SystemExit(
+        f"[PLMCaliper] {what} table has duplicated pairing keys ({', '.join(keys)}), "
+        "which would expand the target-decoy merge.\n"
+        f"             Duplicate rows: {int(dup.sum()):,}; examples: {example_text}\n"
+        "             Check the retrieval output for repeated or invalid hits."
+    )
+
+
 def build_pair_table(df_real, df_decoy, decoy_suffix):
     """Pair on the same target, which controls for target-side properties so that the
     only thing varying is real query vs its decoy."""
     real = df_real.rename(columns={"score": "score_real"})
     decoy = df_decoy.rename(columns={"score": "score_decoy"}).copy()
     decoy["qid_orig"] = decoy["qid"].map(lambda x: strip_decoy_suffix(x, decoy_suffix))
+    require_unique_pair_keys(real, "real", ["qid", "tid"])
+    require_unique_pair_keys(decoy, "decoy", ["qid_orig", "tid"])
 
     df = real.merge(
         decoy[["qid_orig", "tid", "score_decoy"]],

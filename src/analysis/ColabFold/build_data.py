@@ -17,6 +17,7 @@ DATA_DIR = ROOT / "data"
 DATASETS = ("astral", "ur50")
 DECOY_METHOD = "extended_mkv2"     # seq + order-2 Markov resample
 DECOY_SUFFIX = "_mkv"              # id suffix the decoy generator adds to each query
+MARKOV_ORDER = 2                   # the "2" in extended_mkv2
 # DHR reports distances; subtract from this to get larger-is-better, the same
 # constant src/utils/process_searching_score.py uses.
 DHR_SCORE_CEILING = 150.0
@@ -743,7 +744,7 @@ def dhr_build_db(gpus: list[str], n_shards: int) -> None:
             outdir.mkdir(parents=True, exist_ok=True)
             log = open(outdir / "encode.log", "w")
             procs.append(subprocess.Popen(
-                [py, "./do_embedding.py", f"trainer.ur50_path={ROOT / shard}",
+                [py, "./do_embedding.py", f"trainer.ur90_path={ROOT / shard}",
                  f"model.ckpt_path={ckpt}", "trainer.gpus=[0]",
                  f"trainer.devices='{gpu}'", f"hydra.run.dir={outdir}"],
                 cwd=src, stdout=log, stderr=subprocess.STDOUT))
@@ -782,32 +783,60 @@ def dhr_search(top_n: int) -> None:
         _dhr_to_score_table(out_dir / f"{tag}.txt", dst)
 
 
+def _load_plmcaliper():
+    """The released PLM-Caliper implementation, imported by path (as calibration.py does)."""
+    import importlib.util
+    path = ROOT / "src" / "PLMCaliper" / "PLMCaliper.py"
+    if not path.exists():
+        raise SystemExit(f"[step1] {path} is missing")
+    spec = importlib.util.spec_from_file_location("PLMCaliper_core", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def _write_astral4f_query_tsvs() -> tuple[Path, Path]:
     """The 4-family query set and its decoy, as the two-column TSV DHR takes."""
     import random
     random.seed(43)
+    # DECOY_METHOD is extended_mkv2, so the decoy is seq + an order-2 Markov
+    # resample of itself. Reuse PLMCaliper's own generator instead of open-coding
+    # one here, so this path cannot drift from the design the calibration assumes.
+    protein_markovgen = _load_plmcaliper().protein_markovgen
     seqs = read_fasta(DATA_DIR / "astral.fa")
+    # astral.fa wins; astral4f_query.fa only fills ids it does not carry, so a
+    # subset astral.fa still resolves every query while full sets are unchanged.
+    qfa = DATA_DIR / "astral4f_query.fa"
+    if qfa.exists() and qfa.stat().st_size:
+        for k, v in read_fasta(qfa).items():
+            seqs.setdefault(k, v)
     qids = read_astral4f_query_ids()
     q_tsv = DATA_DIR / "astral4f_query.tsv"
     d_tsv = DATA_DIR / f"astral4f_{DECOY_METHOD}.tsv"
-    n = 0
-    with open(q_tsv, "w") as q, open(d_tsv, "w") as d:
-        for qid in qids:
-            if qid not in seqs:
-                continue
-            s = seqs[qid]
-            q.write(f"{qid}\t{s}\n")
-            sh = list(s)
-            random.shuffle(sh)
-            d.write(f"{qid}{DECOY_SUFFIX}\t{s}{''.join(sh)}\n")
-            n += 1
-    print(f"  built {n} query + decoy rows", flush=True)
+    q_rows, d_rows = [], []
+    for qid in qids:
+        if qid not in seqs:
+            continue
+        s = seqs[qid]
+        q_rows.append(f"{qid}\t{s}\n")
+        d_rows.append(f"{qid}{DECOY_SUFFIX}\t{s}{protein_markovgen(s, MARKOV_ORDER)}\n")
+    # q_tsv doubles as an id source for read_astral4f_query_ids(), so build the
+    # rows first and never truncate it on a run that resolved nothing.
+    if not q_rows:
+        raise SystemExit(
+            f"[step1] none of the {len(qids)} astral4f query ids have a sequence in "
+            f"data/astral.fa or data/{qfa.name}; not writing empty query TSVs")
+    q_tsv.write_text("".join(q_rows))
+    d_tsv.write_text("".join(d_rows))
+    print(f"  built {len(q_rows)} query + decoy rows", flush=True)
     return q_tsv, d_tsv
 
 
 def _dhr_to_score_table(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
-    last, rank = None, 0
+    last, rank, seen = None, 0, set()
+    invalid_faiss_distance = np.finfo(np.float32).max / 2
+    skipped_invalid = skipped_duplicate = 0
     with open(src) as fh, open(dst, "w") as out:
         out.write("qid\ttid\tscore\thomo_type\trank\n")
         for line in fh:
@@ -815,10 +844,25 @@ def _dhr_to_score_table(src: Path, dst: Path) -> None:
             if len(p) < 3:
                 continue
             if p[0] != last:
-                last, rank = p[0], 0
+                last, rank, seen = p[0], 0, set()
+            try:
+                distance = float(p[2])
+            except ValueError:
+                skipped_invalid += 1
+                continue
+            if not math.isfinite(distance) or distance >= invalid_faiss_distance:
+                skipped_invalid += 1
+                continue
+            if p[1] in seen:
+                skipped_duplicate += 1
+                continue
+            seen.add(p[1])
             rank += 1
-            out.write(f"{p[0]}\t{p[1]}\t{DHR_SCORE_CEILING - float(p[2])}\t-1\t{rank}\n")
+            out.write(f"{p[0]}\t{p[1]}\t{DHR_SCORE_CEILING - distance}\t-1\t{rank}\n")
     print(f"  wrote {dst}", flush=True)
+    if skipped_invalid or skipped_duplicate:
+        print(f"  skipped {skipped_invalid:,} invalid and "
+              f"{skipped_duplicate:,} duplicate DHR hit(s)", flush=True)
 
 
 # --------------------------------------------------------------------------
