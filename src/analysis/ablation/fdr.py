@@ -956,7 +956,7 @@ def parse_args():
                    help="override; default comes from calibrate.DECOY_SUFFIX")
     p.add_argument("--tag", default=None, help="a single calibrate.py output folder")
     p.add_argument("--q-levels", nargs="+", type=float,
-                   default=[round(0.1 * i, 1) for i in range(1, 10)])
+                   default=[round(float(q), 2) for q in DEFAULT_Q_LEVELS])
     p.add_argument("--n-jobs", type=int, default=1)
     p.add_argument("--out-dir", type=Path, default=ROOT / "results" / "ablation",
                    help="where calibrate.py wrote its per-combo folders")
@@ -972,26 +972,25 @@ def main():
 
     a = parse_args()
     csv_dir = a.csv_dir or (a.out_dir / "plot_data")
-    tags = ([a.tag] if a.tag else
-            [combo_tag(m, a.query_name, d, a.weight_method, a.target_name)
+    jobs = ([(a.tag, a.tag)] if a.tag else
+            [(combo_tag(m, a.query_name, d, a.weight_method, a.target_name), d)
              for m, d in product(a.search_methods, a.decoy_methods)])
 
-    print(f"[ablation] {len(tags)} combination(s) -> {csv_dir}")
+    print(f"[ablation] {len(jobs)} combination(s) -> {csv_dir}")
     ok = 0
-    for tag in tags:
+    for tag, decoy in jobs:
         d = a.out_dir / tag
         tn, cd = d / "target_noisy.tsv", d / "calibrated_decoy.tsv"
         if not (tn.exists() and cd.exists()):
             print(f"[skip] {tag}: run calibrate.py first")
             continue
-        decoy = tag.split("_")[-3] if not a.tag else a.tag
         suffix = a.decoy_suffix or DECOY_SUFFIX.get(decoy, "_mkv")
         print(f"\n=== {tag}  (decoy suffix {suffix}) ===")
         written = run_one(tn, cd, suffix, csv_dir, tag, sorted(a.q_levels), a.n_jobs)
         print("[OK] " + ", ".join(w.name for w in written))
         ok += 1
 
-    print(f"\n[DONE] {ok}/{len(tags)} -> {csv_dir}")
+    print(f"\n[DONE] {ok}/{len(jobs)} -> {csv_dir}")
     if ok:
         print(f"       Next: python plot.py --data-dir {csv_dir}")
 

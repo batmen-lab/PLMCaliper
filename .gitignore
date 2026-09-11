@@ -223,6 +223,10 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Local environment backups
+/src/PLM_searching_cmds/.env.bak
+
 # runtime artefacts
 /data/
 /results/
+/libs/
