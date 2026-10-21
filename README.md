@@ -63,10 +63,15 @@ PLMCaliper/
 │
 ├── results/
 │
-└── src/
-    ├── analysis/
+├── src/
+│   └── PLMCaliper.py
+│
+└── tutorials/
+    ├── ablation/
+    ├── bagel/
+    ├── ColabFold/
+    ├── conformal_benchmark/
     ├── PLM_searching_cmds/
-    ├── PLMCaliper/
     ├── utils/
     └── setup.sh
 ```
