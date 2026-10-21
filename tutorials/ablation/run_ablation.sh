@@ -3,7 +3,7 @@
 set -uo pipefail
 
 ABL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$ABL_DIR/../../.." && pwd)"
+REPO_ROOT="$(cd "$ABL_DIR/../.." && pwd)"
 PY="${PYTHON:-python}"
 
 SEARCH_ALL=(plm tmvec dhr_postprocess blastp_postprocessed)

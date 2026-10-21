@@ -3,7 +3,7 @@
 set -uo pipefail
 
 BAGEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$BAGEL_DIR/../../.." && pwd)"
+REPO_ROOT="$(cd "$BAGEL_DIR/../.." && pwd)"
 PY="${PYTHON:-python}"
 
 METHODS_ALL=(plm tmvec dhr blastp)

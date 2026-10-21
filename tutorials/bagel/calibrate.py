@@ -4,10 +4,10 @@ import shutil
 from pathlib import Path
 
 BAGEL_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = BAGEL_DIR.parents[2]
+PROJECT_ROOT = BAGEL_DIR.parents[1]
 DATA_DIR = PROJECT_ROOT / "data"
-PLMCALIPER_PY = PROJECT_ROOT / "src" / "PLMCaliper" / "PLMCaliper.py"
-ABLATION_CALIBRATE_PY = PROJECT_ROOT / "src" / "analysis" / "ablation" / "calibrate.py"
+PLMCALIPER_PY = PROJECT_ROOT / "src" / "PLMCaliper.py"
+ABLATION_CALIBRATE_PY = PROJECT_ROOT / "tutorials" / "ablation" / "calibrate.py"
 
 # bagel_main.py's own constants; the installed filenames have to match them
 QUERY_NAME, TARGET_NAME, WEIGHT_METHOD = "putative", "class_all", "AdaptiveBell"

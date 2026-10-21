@@ -942,7 +942,7 @@ def run_one(target_noisy: Path, calibrated_decoy: Path, decoy_suffix: str,
 def parse_args():
     import argparse
     ABL = Path(__file__).resolve().parent
-    ROOT = ABL.parents[2]
+    ROOT = ABL.parents[1]
     p = argparse.ArgumentParser(
         description="Ablation step 2: calibrated tables -> FDR curves -> plotting CSVs.")
     p.add_argument("--search-methods", nargs="+",

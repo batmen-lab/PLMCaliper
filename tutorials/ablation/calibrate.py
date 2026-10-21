@@ -4,9 +4,9 @@ from itertools import product
 from pathlib import Path
 
 ABLATION_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = ABLATION_DIR.parents[2]
+PROJECT_ROOT = ABLATION_DIR.parents[1]
 DATA_DIR = PROJECT_ROOT / "data"
-PLMCALIPER_PY = PROJECT_ROOT / "src" / "PLMCaliper" / "PLMCaliper.py"
+PLMCALIPER_PY = PROJECT_ROOT / "src" / "PLMCaliper.py"
 
 # Decoy id suffix per generator; the calibration strips it to pair decoy with real.
 DECOY_SUFFIX = {

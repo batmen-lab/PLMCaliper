@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 ABLATION_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = ABLATION_DIR.parents[2]
+PROJECT_ROOT = ABLATION_DIR.parents[1]
 
 FONT_LABEL = 7
 FONT_TITLE = 7

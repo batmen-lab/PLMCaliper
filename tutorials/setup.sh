@@ -3,7 +3,7 @@ set -uo pipefail
 
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(cd "$SRC_ROOT/.." && pwd)"
-ENV_FILE="$BASE_DIR/src/PLM_searching_cmds/.env"
+ENV_FILE="$BASE_DIR/tutorials/PLM_searching_cmds/.env"
 REQ_DIR="$BASE_DIR/requirements"
 CREATE=0; PRINT_ONLY=0; GPU_OVERRIDE=""
 while [ $# -gt 0 ]; do
@@ -101,7 +101,7 @@ for e in "${ENVS[@]}"; do
   elif [ "$e" = plmcaliper ]; then
     note "$e" "MISSING"
     need "conda create -n plmcaliper python=3.11, then python -m pip install -r requirements.txt"
-  else note "$e" "MISSING"; need "bash src/setup.sh --create-envs   (builds $e from requirements/$e.txt)"; fi
+  else note "$e" "MISSING"; need "bash tutorials/setup.sh --create-envs   (builds $e from requirements/$e.txt)"; fi
 done
 
 # ---- GPUs ------------------------------------------------------------------
@@ -157,7 +157,7 @@ elif command -v blastp >/dev/null 2>&1; then
   echo "[setup] blast+: $(command -v blastp)  (on PATH, outside the plmcaliper env)"
 else
   echo "[setup] blast+: MISSING (only needed for the BLASTp baseline)"
-  need "bash src/setup.sh --create-envs, or conda install -n plmcaliper -c bioconda $BLAST_PKG"
+  need "bash tutorials/setup.sh --create-envs, or conda install -n plmcaliper -c bioconda $BLAST_PKG"
 fi
 
 # ---- vendored method sources ----------------------------------------------
@@ -195,7 +195,7 @@ if [ -f "$DHR_RETRIEVAL" ] && ! grep -q 'max_targets' "$DHR_RETRIEVAL"; then
   [ -n "$DHR_PATCH_PY" ] || DHR_PATCH_PY="${PY[plmcaliper]:-}"
   [ -n "$DHR_PATCH_PY" ] || DHR_PATCH_PY="$(command -v python3 || command -v python || true)"
   if [ -z "$DHR_PATCH_PY" ]; then
-    need "no python found to patch libs/.../do_retrieval.py -- create an env, then re-run src/setup.sh"
+    need "no python found to patch libs/.../do_retrieval.py -- create an env, then re-run tutorials/setup.sh"
   else
     cp -n "$DHR_RETRIEVAL" "$DHR_RETRIEVAL.orig"
     if "$DHR_PATCH_PY" - "$DHR_RETRIEVAL" <<'DHR_PATCH_EOF'
@@ -318,9 +318,9 @@ echo "[setup] wrote $ENV_FILE"
 echo
 if [ ${#missing[@]} -eq 0 ]; then
   echo "[setup] everything found. Next:"
-  echo "        source src/PLM_searching_cmds/.env"
+  echo "        source tutorials/PLM_searching_cmds/.env"
 else
   echo "[setup] .env written, but ${#missing[@]} thing(s) still needed:"
   for m in "${missing[@]}"; do echo "        - $m"; done
-  echo "        Re-run 'bash src/setup.sh' once they are in place."
+  echo "        Re-run 'bash tutorials/setup.sh' once they are in place."
 fi

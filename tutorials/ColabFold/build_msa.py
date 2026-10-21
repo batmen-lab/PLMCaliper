@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
 LIBS = PROJECT_ROOT / "libs"
 QJACKHMMER = LIBS / "Dense-Homolog-Retrieval-main" / "bin" / "qjackhmmer"

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
 
 DATASETS = ("astral", "ur50")
@@ -19,7 +19,7 @@ DECOY_METHOD = "extended_mkv2"     # seq + order-2 Markov resample
 DECOY_SUFFIX = "_mkv"              # id suffix the decoy generator adds to each query
 MARKOV_ORDER = 2                   # the "2" in extended_mkv2
 # DHR reports distances; subtract from this to get larger-is-better, the same
-# constant src/utils/process_searching_score.py uses.
+# constant tutorials/utils/process_searching_score.py uses.
 DHR_SCORE_CEILING = 150.0
 
 # the two tables step 2 consumes; step 1 is what puts them there
@@ -107,7 +107,7 @@ def read_astral4f_query_ids() -> list[str]:
 def env(name: str, default: str | None = None) -> str:
     v = os.environ.get(name, default)
     if not v:
-        raise SystemExit(f"[step1] {name} unset -- run `bash src/setup.sh` then\n                          `source src/PLM_searching_cmds/.env`")
+        raise SystemExit(f"[step1] {name} unset -- run `bash tutorials/setup.sh` then\n                          `source tutorials/PLM_searching_cmds/.env`")
     return v
 
 
@@ -786,7 +786,7 @@ def dhr_search(top_n: int) -> None:
 def _load_plmcaliper():
     """The released PLM-Caliper implementation, imported by path (as calibration.py does)."""
     import importlib.util
-    path = ROOT / "src" / "PLMCaliper" / "PLMCaliper.py"
+    path = ROOT / "src" / "PLMCaliper.py"
     if not path.exists():
         raise SystemExit(f"[step1] {path} is missing")
     spec = importlib.util.spec_from_file_location("PLMCaliper_core", path)
@@ -980,7 +980,7 @@ def drive_search(dataset: str, method: str, gpu: str) -> None:
         raise SystemExit(
             "[step1] the ASTRAL40 self-search tables are inputs to this experiment, "
             "not products of it.\n"
-            "        Build them with src/PLM_searching_cmds/run_search.sh "
+            "        Build them with tutorials/PLM_searching_cmds/run_search.sh "
             "(real and decoy query).")
     if method == "tmvec":
         tdb = TMVEC_DB

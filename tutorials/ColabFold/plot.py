@@ -11,7 +11,7 @@ import pandas as pd
 from scipy import stats as sps
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parents[2]
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
 sys.path.insert(0, str(SCRIPT_DIR))
 
 # Nature-style rcParams, kept local to this experiment.
@@ -69,7 +69,7 @@ def experiment_dir(name: str) -> Path:
 _apply_rcparams()
 
 DEFAULT_DATA_DIR = experiment_dir("ColabFold")
-PROJECT_ROOT_ = Path(__file__).resolve().parents[3]
+PROJECT_ROOT_ = Path(__file__).resolve().parents[2]
 DATASETS = ("astral", "ur50")
 # the run tree is derived data; only the figures go to results/
 RESULTS_DIR = {"astral": PROJECT_ROOT_ / "data" / "ColabFold" / "astral_db",

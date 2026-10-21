@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parents[2]
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
 CONFORMAL_LIB = PROJECT_ROOT / "libs" / "conformal-protein-retrieval"
 
 DEFAULT_SCORE_DIR = PROJECT_ROOT / "data"

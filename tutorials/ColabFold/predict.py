@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATASETS = ("astral", "ur50")
 # the run tree is derived data; only the figures go to results/
 RESULTS_DIR = {"astral": PROJECT_ROOT / "data" / "ColabFold" / "astral_db",

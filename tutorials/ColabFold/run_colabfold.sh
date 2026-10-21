@@ -3,7 +3,7 @@
 set -uo pipefail
 
 CF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$CF_DIR/../../.." && pwd)"
+REPO_ROOT="$(cd "$CF_DIR/../.." && pwd)"
 PY="${PYTHON:-python}"
 
 METHODS_ALL=(dhr_postprocess plm tmvec)
@@ -65,14 +65,14 @@ done
 
 # ---- retrieval interpreters -------------------------------------------------
 # build_data.py fans out to $TMVEC_PYTHON_PATH / $PLMSEARCH_PYTHON_PATH / $DHR_PYTHON_PATH
-ENV_FILE="$REPO_ROOT/src/PLM_searching_cmds/.env"
+ENV_FILE="$REPO_ROOT/tutorials/PLM_searching_cmds/.env"
 if [ -z "${BASE_DIR:-}" ]; then
     if [ -f "$ENV_FILE" ]; then
         echo "[colabfold] sourcing $ENV_FILE"
         # shellcheck disable=SC1090
         . "$ENV_FILE"
     elif want db || want search; then
-        echo "[colabfold] $ENV_FILE not found -- run 'bash src/setup.sh' first" >&2
+        echo "[colabfold] $ENV_FILE not found -- run 'bash tutorials/setup.sh' first" >&2
         [ "$DRY" = 1 ] || exit 1
     fi
 fi
@@ -132,9 +132,9 @@ if want tsv; then
     elif [ -s "$ur50_tsv" ]; then
         echo "[colabfold] $ur50_tsv already built, skipping (delete it to rebuild)"
     else
-        printf '[colabfold] $ %s\n' "$PY $REPO_ROOT/src/utils/fa2tsv.py --fasta $ur50_fa"
+        printf '[colabfold] $ %s\n' "$PY $REPO_ROOT/tutorials/utils/fa2tsv.py --fasta $ur50_fa"
         if [ "$DRY" != 1 ]; then
-            "$PY" "$REPO_ROOT/src/utils/fa2tsv.py" --fasta "$ur50_fa" || {
+            "$PY" "$REPO_ROOT/tutorials/utils/fa2tsv.py" --fasta "$ur50_fa" || {
                 echo "[colabfold] fa2tsv failed" >&2; exit 1; }
         fi
     fi

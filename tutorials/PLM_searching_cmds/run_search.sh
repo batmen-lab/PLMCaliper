@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # bash run_search.sh -m <plm|tmvec|dhr|blastp> -q <query> -t <target>
-# Requires: bash src/setup.sh && source src/PLM_searching_cmds/.env    Query/target are .tsv for dhr, .fa otherwise.
+# Requires: bash tutorials/setup.sh && source tutorials/PLM_searching_cmds/.env    Query/target are .tsv for dhr, .fa otherwise.
 set -euo pipefail
 trap 'echo "[run_search] FAILED (line $LINENO): $BASH_COMMAND" >&2' ERR
 
@@ -17,7 +17,7 @@ done
 [[ -n "$METHOD" && -n "$QUERY_PATH" && -n "$TARGET_PATH" ]] || {
     echo "Usage: bash $0 -m <plm|tmvec|dhr|blastp> -q <query> -t <target>" >&2; exit 1; }
 [[ -n "${BASE_DIR:-}" ]] || {
-    echo "[run_search] BASE_DIR unset -- run 'bash src/setup.sh && source src/PLM_searching_cmds/.env' first" >&2; exit 1; }
+    echo "[run_search] BASE_DIR unset -- run 'bash tutorials/setup.sh && source tutorials/PLM_searching_cmds/.env' first" >&2; exit 1; }
 
 # OUT_TAG feeds the parser's output filename -- keep these strings exact.
 case "$METHOD" in
@@ -180,7 +180,7 @@ search_blastp() {
 
     # ASTRAL: blastp has no batching of its own, so shard and run NUM_PARALLEL at a time
     [[ -d "$TEMP_DATA_SPLIT_DIR" ]] || \
-        python "$BASE_DIR/src/utils/parallel_utils.py" \
+        python "$BASE_DIR/tutorials/utils/parallel_utils.py" \
             --fasta_path "$QUERY_PATH" --output_dir "$TEMP_DATA_SPLIT_DIR"
 
     local n=0
@@ -208,7 +208,7 @@ if [[ "$TARGET_MODE" == "scop" ]]; then
     if [[ -s "$PARSED" ]]; then
         echo "[run_search] score table already exists, skipping parse: $PARSED"
     else
-        python "$BASE_DIR/src/utils/process_searching_score.py" parse \
+        python "$BASE_DIR/tutorials/utils/process_searching_score.py" parse \
             --data_type "$METHOD" \
             --input_path "$OUTPUT_DIR" \
             --save_path "$DATA_DIR" \
@@ -230,7 +230,7 @@ else
     esac
     [[ "$METHOD" == "blastp" ]] && RAW_EXT="out" || RAW_EXT="txt"
     PARSED="$DATA_DIR/result_${METHOD}_${query_basename}_${target_basename}.txt"
-    python "$BASE_DIR/src/utils/process_searching_score.py" parse-bagel \
+    python "$BASE_DIR/tutorials/utils/process_searching_score.py" parse-bagel \
         --method "$METHOD" \
         --score-file "$OUTPUT_DIR/${query_basename}.${RAW_EXT}" \
         --out-path "$PARSED" \

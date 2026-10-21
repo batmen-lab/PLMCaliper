@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-BASE_DIR = Path(__file__).resolve().parents[3]
+BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "data"
 DEFAULT_OUT_PARENT = BASE_DIR / "results" / "bagel"
 DEFAULT_SEARCH_METHOD = "plm"

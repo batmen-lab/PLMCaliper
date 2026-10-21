@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
 
 DATASETS = ("astral", "ur50")
@@ -63,7 +63,7 @@ def read_query_ids(path: Path) -> list[str]:
     return ids
 
 
-PLMCALIPER = PROJECT_ROOT / "src" / "PLMCaliper" / "PLMCaliper.py"
+PLMCALIPER = PROJECT_ROOT / "src" / "PLMCaliper.py"
 
 
 def load_plmcaliper():
