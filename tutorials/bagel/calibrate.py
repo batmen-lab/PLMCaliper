@@ -3,6 +3,8 @@ import importlib.util
 import shutil
 from pathlib import Path
 
+import pandas as pd
+
 BAGEL_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BAGEL_DIR.parents[1]
 DATA_DIR = PROJECT_ROOT / "data"
@@ -98,13 +100,16 @@ def main():
 
     print(f"[bagel-calib] === {a.search_method} / {a.decoy_method} "
           f"(decoy suffix {a.decoy_suffix}) ===")
-    pc.calibrate(
-        str(raw_real), str(raw_decoy), str(work_dir / "cutoffs.tsv"),
-        decoy_suffix=a.decoy_suffix, q_levels=[a.target_fdr],
-        weight_method=a.weight_method, tau=a.tau, tol=a.tol,
+    df_real = pd.read_csv(raw_real, sep=None, engine="python").dropna(subset=["score"])
+    df_decoy = pd.read_csv(raw_decoy, sep=None, engine="python").dropna(subset=["score"])
+    calibrated_decoy, noisy_target, efdps, cutoffs, hits = pc.PLMCaliper(
+        decoy_suffix=a.decoy_suffix, tau=a.tau, tol=a.tol,
         max_iter=a.max_iter, noise_lambda=a.noise_lambda, n_reps=a.n_reps,
-        seed=a.seed, num_points=a.num_points, keep_intermediates=str(work_dir),
-    )
+        seed=a.seed, num_points=a.num_points,
+    ).plmcaliper(df_real, df_decoy, [a.target_fdr])
+    calibrated_decoy.to_csv(work_dir / "calibrated_decoy.tsv", sep="\t", index=False)
+    noisy_target.to_csv(work_dir / "target_noisy.tsv", sep="\t", index=False)
+    cutoffs.to_csv(work_dir / "cutoffs.tsv", sep="\t", index=False)
 
     target_noisy = work_dir / "target_noisy.tsv"
     # the calibration writes qid/tid/score/rep_id; discover's pair table also

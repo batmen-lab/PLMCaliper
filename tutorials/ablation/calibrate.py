@@ -68,15 +68,19 @@ def attach_labels(target_noisy: Path, raw_real: Path) -> None:
 
 
 def calibrate_one(pc, real, decoy, out_dir, *, decoy_suffix, q_levels, **kw):
+    import pandas as pd
+
     out_dir.mkdir(parents=True, exist_ok=True)
-    pc.calibrate(
-        str(real), str(decoy), str(out_dir / "cutoffs.tsv"),
-        decoy_suffix=decoy_suffix, q_levels=q_levels,
-        weight_method=kw["weight_method"], tau=kw["tau"], tol=kw["tol"],
+    df_real = pd.read_csv(real, sep=None, engine="python").dropna(subset=["score"])
+    df_decoy = pd.read_csv(decoy, sep=None, engine="python").dropna(subset=["score"])
+    calibrated_decoy, noisy_target, efdps, cutoffs, hits = pc.PLMCaliper(
+        decoy_suffix=decoy_suffix, tau=kw["tau"], tol=kw["tol"],
         max_iter=kw["max_iter"], noise_lambda=kw["noise_lambda"],
         n_reps=kw["n_reps"], seed=kw["seed"], num_points=kw["num_points"],
-        keep_intermediates=str(out_dir),
-    )
+    ).plmcaliper(df_real, df_decoy, q_levels)
+    calibrated_decoy.to_csv(out_dir / "calibrated_decoy.tsv", sep="\t", index=False)
+    noisy_target.to_csv(out_dir / "target_noisy.tsv", sep="\t", index=False)
+    cutoffs.to_csv(out_dir / "cutoffs.tsv", sep="\t", index=False)
     target_noisy = out_dir / "target_noisy.tsv"
     attach_labels(target_noisy, Path(real))
     return target_noisy, out_dir / "calibrated_decoy.tsv"

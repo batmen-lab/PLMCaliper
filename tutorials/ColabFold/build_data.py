@@ -797,12 +797,11 @@ def _load_plmcaliper():
 
 def _write_astral4f_query_tsvs() -> tuple[Path, Path]:
     """The 4-family query set and its decoy, as the two-column TSV DHR takes."""
-    import random
-    random.seed(43)
+    import tempfile
     # DECOY_METHOD is extended_mkv2, so the decoy is seq + an order-2 Markov
     # resample of itself. Reuse PLMCaliper's own generator instead of open-coding
     # one here, so this path cannot drift from the design the calibration assumes.
-    protein_markovgen = _load_plmcaliper().protein_markovgen
+    build_decoy = _load_plmcaliper().PLMCaliper().build_decoy
     seqs = read_fasta(DATA_DIR / "astral.fa")
     # astral.fa wins; astral4f_query.fa only fills ids it does not carry, so a
     # subset astral.fa still resolves every query while full sets are unchanged.
@@ -813,13 +812,15 @@ def _write_astral4f_query_tsvs() -> tuple[Path, Path]:
     qids = read_astral4f_query_ids()
     q_tsv = DATA_DIR / "astral4f_query.tsv"
     d_tsv = DATA_DIR / f"astral4f_{DECOY_METHOD}.tsv"
-    q_rows, d_rows = [], []
-    for qid in qids:
-        if qid not in seqs:
-            continue
-        s = seqs[qid]
-        q_rows.append(f"{qid}\t{s}\n")
-        d_rows.append(f"{qid}{DECOY_SUFFIX}\t{s}{protein_markovgen(s, MARKOV_ORDER)}\n")
+    records = [(qid, seqs[qid]) for qid in qids if qid in seqs]
+    with tempfile.TemporaryDirectory() as tmp:
+        q_fa = Path(tmp) / "query.fa"
+        q_fa.write_text("".join(f">{qid}\n{s}\n" for qid, s in records))
+        mkv = read_fasta(Path(build_decoy(str(q_fa), str(Path(tmp) / "mkv.fa"), design="mkv",
+                                          markov_order=MARKOV_ORDER, seed=43)))
+    q_rows = [f"{qid}\t{s}\n" for qid, s in records]
+    d_rows = [f"{qid}{DECOY_SUFFIX}\t{s}{decoy}\n"
+              for (qid, s), decoy in zip(records, mkv.values())]
     # q_tsv doubles as an id source for read_astral4f_query_ids(), so build the
     # rows first and never truncate it on a run that resolved nothing.
     if not q_rows:

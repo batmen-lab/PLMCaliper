@@ -64,6 +64,7 @@ def read_query_ids(path: Path) -> list[str]:
 
 
 PLMCALIPER = PROJECT_ROOT / "src" / "PLMCaliper.py"
+RUN_PLMCALIPER = PROJECT_ROOT / "src" / "run_PLMCaliper.py"
 
 
 def load_plmcaliper():
@@ -96,7 +97,7 @@ def run_plmcaliper(dataset: str, method: str, real: Path, decoy: Path, out: Path
     """Raw score tables -> per-(query, q) score cutoffs, via the released tool."""
     out.parent.mkdir(parents=True, exist_ok=True)
     if python_exe:
-        cmd = [python_exe, str(PLMCALIPER), "calibrate",
+        cmd = [python_exe, str(RUN_PLMCALIPER), "calibrate",
                "--real", str(real), "--decoy", str(decoy), "--out", str(out),
                "--decoy-suffix", DECOY_SUFFIX,
                "--target-fdr", *[f"{q:g}" for q in EFDR_THRESHOLDS],
@@ -111,14 +112,19 @@ def run_plmcaliper(dataset: str, method: str, real: Path, decoy: Path, out: Path
 
     print(f"[step2] importing PLM-Caliper core: {PLMCALIPER}", flush=True)
     pc = load_plmcaliper()
-    pc.calibrate(
-        str(real), str(decoy), str(out),
-        decoy_suffix=DECOY_SUFFIX, q_levels=EFDR_THRESHOLDS,
-        tau=tau, tol=CALIB["tol"],
+    df_real = pd.read_csv(real, sep=None, engine="python").dropna(subset=["score"])
+    df_decoy = pd.read_csv(decoy, sep=None, engine="python").dropna(subset=["score"])
+    calibrated_decoy, noisy_target, efdps, cutoffs, hits = pc.PLMCaliper(
+        decoy_suffix=DECOY_SUFFIX, tau=tau, tol=CALIB["tol"],
         max_iter=CALIB["max_iter"], noise_lambda=CALIB["noise_lambda"],
         n_reps=CALIB["n_reps"], seed=CALIB["seed"],
         num_points=CALIB["num_points"],
-    )
+    ).plmcaliper(df_real, df_decoy, EFDR_THRESHOLDS)
+    # same number formats as run_PLMCaliper.py calibrate, so both paths write the same file
+    cutoffs["target_fdr"] = [f"{v:g}" for v in cutoffs["target_fdr"]]
+    cutoffs["cutoff_score"] = [("" if v != v else f"{v:.17g}") for v in cutoffs["cutoff_score"]]
+    cutoffs["est_fdp"] = [("" if v != v else f"{v:.6g}") for v in cutoffs["est_fdp"]]
+    cutoffs.to_csv(out, sep="\t", index=False)
 
 
 def select_hits(dataset: str, method: str, cutoffs: Path, real: Path,
@@ -171,7 +177,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--skip-calibration", action="store_true",
                    help="reuse an existing cutoffs.tsv and only re-select hits")
     p.add_argument("--python", default=os.environ.get("PLMCALIPER_PYTHON") or None,
-                   help="interpreter for running PLMCaliper.py out of process "
+                   help="interpreter for running run_PLMCaliper.py out of process "
                         "(default: $PLMCALIPER_PYTHON, else in-process import)")
     p.add_argument("--out-cutoffs", type=Path, default=None)
     p.add_argument("--out-hits", type=Path, default=None)

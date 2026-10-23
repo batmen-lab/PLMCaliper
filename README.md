@@ -64,7 +64,8 @@ PLMCaliper/
 ├── results/
 │
 ├── src/
-│   └── PLMCaliper.py
+│   ├── PLMCaliper.py         # PLMCaliper class
+│   └── run_PLMCaliper.py     # command line: make-decoy / calibrate
 │
 └── tutorials/
     ├── ablation/
@@ -90,7 +91,7 @@ PLM-Caliper generates decoy queries and calibrates search scores; the target and
 The input consists of query protein sequences, and the output is the corresponding `extended-Markov` decoy sequences.
 
 ```bash
-python src/PLMCaliper/PLMCaliper.py make-decoy \
+python src/run_PLMCaliper.py make-decoy \
   --fasta data/astral.fa \
   --out data/astral_extended_mkv2.fa \
   --design extended_mkv \
@@ -104,14 +105,14 @@ Search the original queries and the decoy queries against the same target databa
 Then create the search environments (`plmsearch`, `dhr`, and `tmvec`) and load the paths:
 
 ```bash
-bash src/setup.sh --create-envs
-source src/PLM_searching_cmds/.env
+bash tutorials/setup.sh --create-envs
+source tutorials/PLM_searching_cmds/.env
 ```
 
 Run retrieval for the original queries:
 
 ```bash
-bash src/PLM_searching_cmds/run_search.sh \
+bash tutorials/PLM_searching_cmds/run_search.sh \
   -m tmvec \
   -q data/astral.fa \
   -t data/astral.fa
@@ -120,13 +121,13 @@ bash src/PLM_searching_cmds/run_search.sh \
 Run retrieval for the decoy queries:
 
 ```bash
-bash src/PLM_searching_cmds/run_search.sh \
+bash tutorials/PLM_searching_cmds/run_search.sh \
   -m tmvec \
   -q data/astral_extended_mkv2.fa \
   -t data/astral.fa
 ```
 
-Use `-m plm`, `-m dhr`, or `-m blastp` to run the other retrieval methods. Note that `.fa` files must be converted to `.tsv` using `src/utils/fa2tsv.py` before running DHR.
+Use `-m plm`, `-m dhr`, or `-m blastp` to run the other retrieval methods. Note that `.fa` files must be converted to `.tsv` using `tutorials/utils/fa2tsv.py` before running DHR.
 
 The parsed score tables are written as `data/result_<method>_<query>_<target>.txt`.
 
@@ -143,13 +144,13 @@ qid	tid	score
 >
 > ```bash
 > # DHR: flip distances into similarities
-> python src/utils/process_searching_score.py dhr-postprocess \
+> python tutorials/utils/process_searching_score.py dhr-postprocess \
 >   --query astral \
 >   --db astral \
 >   --decoy extended_mkv2
 >
 > # BLASTp: fill the query-target pairs BLASTp never reported
-> python src/utils/process_searching_score.py blastp-densify \
+> python tutorials/utils/process_searching_score.py blastp-densify \
 >   --real data/result_blastp_astral_astral.txt \
 >   --decoy data/result_blastp_astral_extended_mkv2_astral.txt \
 >   --fasta data/astral.fa \
@@ -166,12 +167,12 @@ The calibration module requires the following inputs:
 
 ```bash
 mkdir -p results
-python src/PLMCaliper/PLMCaliper.py calibrate \
+python src/run_PLMCaliper.py calibrate \
   --real data/result_tmvec_astral_astral.txt \
   --decoy data/result_tmvec_astral_extended_mkv2_astral.txt \
   --out results/plmcaliper_cutoffs.tsv \
   --target-fdr 0.50 \
-  -hits --hits-out results/plmcaliper_hits.tsv
+  --hits-out results/plmcaliper_hits.tsv
 ```
 
 Main output `plmcaliper_cutoffs.tsv`:
@@ -195,7 +196,7 @@ qid	tid	rep_id	score	est_fdp
 The experimental analysis code is organized under:
 
 ```text
-src/analysis/
+tutorials/
 ```
 
 Each subdirectory corresponds to an experiment reported in the paper. 
@@ -208,7 +209,7 @@ To save computation time, precomputed PLM-based search scores and calibration fi
 Directory:
 
 ```text
-src/analysis/ablation/
+tutorials/ablation/
 ```
 
 This experiment evaluates the effects of decoy design and score calibration on false discovery control. The analysis includes different decoy-generation strategies and compares FDR estimation before and after score calibration.
@@ -219,19 +220,19 @@ method-decoy pair, TM-Vec searched against the `shuf` decoy design:
 
 ```bash
 conda activate plmcaliper
-source src/PLM_searching_cmds/.env
+source tutorials/PLM_searching_cmds/.env
 
-python src/PLMCaliper/PLMCaliper.py make-decoy \
+python src/run_PLMCaliper.py make-decoy \
   --fasta data/astral.fa \
   --out data/astral_shuf.fa \
   --design shuf
 
-bash src/PLM_searching_cmds/run_search.sh \
+bash tutorials/PLM_searching_cmds/run_search.sh \
   -m tmvec \
   -q data/astral.fa \
   -t data/astral.fa
 
-bash src/PLM_searching_cmds/run_search.sh \
+bash tutorials/PLM_searching_cmds/run_search.sh \
   -m tmvec \
   -q data/astral_shuf.fa \
   -t data/astral.fa
@@ -243,7 +244,7 @@ The ablation evaluates `shuf`, `rev`, `mkv`, and `dplm` decoys with `plm`, `dhr`
 Run the experiment with:
 
 ```bash
-bash src/analysis/ablation/run_ablation.sh -m tmvec -d shuf
+bash tutorials/ablation/run_ablation.sh -m tmvec -d shuf
 ```
 
 ---
@@ -253,7 +254,7 @@ bash src/analysis/ablation/run_ablation.sh -m tmvec -d shuf
 Directory:
 
 ```text
-src/analysis/bagel/
+tutorials/bagel/
 ```
 
 This experiment evaluates PLM-Caliper for FDR-guided annotation of putative bacteriocins using the BAGEL4 benchmark.
@@ -264,20 +265,20 @@ First, generate real and decoy similarity scores for the BAGEL dataset using eac
 
 ```bash
 conda activate plmcaliper
-source src/PLM_searching_cmds/.env
+source tutorials/PLM_searching_cmds/.env
 
-python src/PLMCaliper/PLMCaliper.py make-decoy \
+python src/run_PLMCaliper.py make-decoy \
   --fasta data/putative.fa \
   --out data/putative_extended_mkv2.fa \
   --design extended_mkv \
   --markov-order 2
 
-bash src/PLM_searching_cmds/run_search.sh \
+bash tutorials/PLM_searching_cmds/run_search.sh \
   -m tmvec \
   -q data/putative.fa \
   -t data/class_all.fa
 
-bash src/PLM_searching_cmds/run_search.sh \
+bash tutorials/PLM_searching_cmds/run_search.sh \
   -m tmvec \
   -q data/putative_extended_mkv2.fa \
   -t data/class_all.fa
@@ -299,7 +300,7 @@ rm -rf data/bagel/.cache
 Run the experiment with:
 
 ```bash
-bash src/analysis/bagel/run_bagel.sh -target_fdr 0.20 -m tmvec
+bash tutorials/bagel/run_bagel.sh -target_fdr 0.20 -m tmvec
 ```
 
 ---
@@ -309,7 +310,7 @@ bash src/analysis/bagel/run_bagel.sh -target_fdr 0.20 -m tmvec
 Directory:
 
 ```text
-src/analysis/ColabFold/
+tutorials/ColabFold/
 ```
 
 This experiment evaluates whether FDR-guided sequence selection can reduce the number of retrieved sequences used for multiple-sequence alignment (MSA) construction while preserving downstream protein structure-prediction quality.
@@ -322,14 +323,14 @@ Install the dependencies for this experiment:
 
 ```bash
 conda activate plmcaliper
-source src/PLM_searching_cmds/.env
+source tutorials/PLM_searching_cmds/.env
 conda run -n tmvec python -m pip install --no-deps -e libs/tm-vec-master deepblast==1.0.2
 ```
 
 Run the experiment with:
 
 ```bash
-bash src/analysis/ColabFold/run_colabfold.sh -m dhr
+bash tutorials/ColabFold/run_colabfold.sh -m dhr
 ```
 
 ---
@@ -339,7 +340,7 @@ bash src/analysis/ColabFold/run_colabfold.sh -m dhr
 Directory:
 
 ```text
-src/analysis/conformal_benchmark/
+tutorials/conformal_benchmark/
 ```
 
 This experiment compares PLM-Caliper with the conformal risk control baseline for controlling false discoveries in protein retrieval.
@@ -349,6 +350,6 @@ Run the experiment with:
 ```bash
 conda activate plmcaliper
 
-bash src/analysis/conformal_benchmark/run_conformal.sh -m dhr -split_level fold
+bash tutorials/conformal_benchmark/run_conformal.sh -m dhr -split_level fold
 ```
 
