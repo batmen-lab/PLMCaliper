@@ -57,15 +57,13 @@ PLMCaliper/
 │   ├── putative.fa           # BAGEL4 putative bacteriocins
 │   └── putative.tsv
 │
-├── requirements/             # pip requirements per search env
-│
 ├── libs/
 │
 ├── results/
 │
 ├── src/
 │   ├── PLMCaliper.py         # PLMCaliper class
-│   └── run_PLMCaliper.py     # command line: make-decoy / calibrate
+│   └── run_PLMCaliper.py
 │
 └── tutorials/
     ├── ablation/
@@ -199,157 +197,6 @@ The experimental analysis code is organized under:
 tutorials/
 ```
 
-Each subdirectory corresponds to an experiment reported in the paper. 
+Each subdirectory corresponds to an experiment reported in the paper. For step-by-step reproduction instructions and the expected results, see the README and Jupyter notebook in each subdirectory.
+
 To save computation time, precomputed PLM-based search scores and calibration files are available for download from [Hugging Face](https://huggingface.co/datasets/yifanyang993/PLMCaliper).
-
----
-
-### 1. Decoy and Calibration Ablation
-
-Directory:
-
-```text
-tutorials/ablation/
-```
-
-This experiment evaluates the effects of decoy design and score calibration on false discovery control. The analysis includes different decoy-generation strategies and compares FDR estimation before and after score calibration.
-
-This experiment starts from search scores, so run the retrieval step above
-first if `data/` does not already hold them. The commands below produce one
-method-decoy pair, TM-Vec searched against the `shuf` decoy design:
-
-```bash
-conda activate plmcaliper
-source tutorials/PLM_searching_cmds/.env
-
-python src/run_PLMCaliper.py make-decoy \
-  --fasta data/astral.fa \
-  --out data/astral_shuf.fa \
-  --design shuf
-
-bash tutorials/PLM_searching_cmds/run_search.sh \
-  -m tmvec \
-  -q data/astral.fa \
-  -t data/astral.fa
-
-bash tutorials/PLM_searching_cmds/run_search.sh \
-  -m tmvec \
-  -q data/astral_shuf.fa \
-  -t data/astral.fa
-```
-
-The ablation evaluates `shuf`, `rev`, `mkv`, and `dplm` decoys with `plm`, `dhr`, `tmvec`, and `blastp`. The pre-computed score tables are available from
-[Hugging Face](https://huggingface.co/datasets/yifanyang993/PLMCaliper).
-
-Run the experiment with:
-
-```bash
-bash tutorials/ablation/run_ablation.sh -m tmvec -d shuf
-```
-
----
-
-### 2. BAGEL4 Bacteriocin Analysis
-
-Directory:
-
-```text
-tutorials/bagel/
-```
-
-This experiment evaluates PLM-Caliper for FDR-guided annotation of putative bacteriocins using the BAGEL4 benchmark.
-
-The analysis applies FDR-controlled protein retrieval to identify candidate bacteriocin homologs while controlling the expected proportion of false discoveries.
-
-First, generate real and decoy similarity scores for the BAGEL dataset using each search method.
-
-```bash
-conda activate plmcaliper
-source tutorials/PLM_searching_cmds/.env
-
-python src/run_PLMCaliper.py make-decoy \
-  --fasta data/putative.fa \
-  --out data/putative_extended_mkv2.fa \
-  --design extended_mkv \
-  --markov-order 2
-
-bash tutorials/PLM_searching_cmds/run_search.sh \
-  -m tmvec \
-  -q data/putative.fa \
-  -t data/class_all.fa
-
-bash tutorials/PLM_searching_cmds/run_search.sh \
-  -m tmvec \
-  -q data/putative_extended_mkv2.fa \
-  -t data/class_all.fa
-```
-
-The figures place every sequence on a shared t-SNE map, whose coordinates come
-from TM-Vec embeddings. Download the published t-SNE layout into `data/bagel/`:
-
-```bash
-python -m pip install -U "huggingface_hub[cli]"
-
-mkdir -p data/bagel
-hf download yifanyang993/PLMCaliper --repo-type dataset \
-  --include "tsne/*" --local-dir data/bagel
-mv data/bagel/tsne/*.npy data/bagel/ && rmdir data/bagel/tsne
-rm -rf data/bagel/.cache
-```
-
-Run the experiment with:
-
-```bash
-bash tutorials/bagel/run_bagel.sh -target_fdr 0.20 -m tmvec
-```
-
----
-
-### 3. FDR-Guided MSA Construction and Structure Prediction
-
-Directory:
-
-```text
-tutorials/ColabFold/
-```
-
-This experiment evaluates whether FDR-guided sequence selection can reduce the number of retrieved sequences used for multiple-sequence alignment (MSA) construction while preserving downstream protein structure-prediction quality.
-
-The pipeline includes data preparation, MSA construction, PLM-Caliper calibration, structure prediction, evaluation, and visualization.
-
-The search database is UniRef50, available from the [UniProt FTP site](https://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref50/uniref50.fasta.gz). The release used in the paper holds 38,794,121 sequences. Place it at `data/uniref50/uniref50.fasta`.
-
-Install the dependencies for this experiment:
-
-```bash
-conda activate plmcaliper
-source tutorials/PLM_searching_cmds/.env
-conda run -n tmvec python -m pip install --no-deps -e libs/tm-vec-master deepblast==1.0.2
-```
-
-Run the experiment with:
-
-```bash
-bash tutorials/ColabFold/run_colabfold.sh -m dhr
-```
-
----
-
-### 4. Conformal Benchmark
-
-Directory:
-
-```text
-tutorials/conformal_benchmark/
-```
-
-This experiment compares PLM-Caliper with the conformal risk control baseline for controlling false discoveries in protein retrieval.
-
-Run the experiment with:
-
-```bash
-conda activate plmcaliper
-
-bash tutorials/conformal_benchmark/run_conformal.sh -m dhr -split_level fold
-```
-
