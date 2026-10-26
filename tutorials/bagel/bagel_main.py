@@ -15,6 +15,9 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "utils"))
+from fdr import FDREvaluator  # tutorials/utils/fdr.py
+
 BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "data"
 DEFAULT_OUT_PARENT = BASE_DIR / "results" / "bagel"
@@ -1120,43 +1123,6 @@ Q_SINGLE = 0.20
 Q_LEVELS = np.round(np.arange(0.10, 0.70, 0.10), 2)
 
 
-def remove_decoy_suffix(qid, decoy_suffix):
-    if qid.endswith(decoy_suffix):
-        return qid[: -len(decoy_suffix)]
-    return qid
-
-
-def make_pair_table_keep_tid(path_real, path_decoy, decoy_suffix):
-    df_real = pd.read_csv(path_real, sep="\t")
-    df_decoy = pd.read_csv(path_decoy, sep="\t")
-
-    df_real = df_real[["qid", "tid", "homo_type", "score", "rep_id"]].copy()
-    df_real = df_real.rename(columns={
-        "score": "score_real",
-        "homo_type": "homo_type_real",
-    })
-
-    df_decoy = df_decoy[["qid", "tid", "score", "rep_id"]].copy()
-    df_decoy["qid_orig"] = df_decoy["qid"].apply(
-        lambda x: remove_decoy_suffix(x, decoy_suffix)
-    )
-    df_decoy = df_decoy.rename(columns={"score": "score_decoy"})
-
-    df_merge = df_real.merge(
-        df_decoy[["qid_orig", "tid", "score_decoy", "rep_id"]],
-        left_on=["qid", "tid", "rep_id"],
-        right_on=["qid_orig", "tid", "rep_id"],
-        how="inner",
-    )
-    df_merge = df_merge.drop(columns=["qid_orig"], errors="ignore")
-    df_merge["score_real"] = df_merge["score_real"].astype(np.float32)
-    df_merge["score_decoy"] = df_merge["score_decoy"].astype(np.float32)
-    if df_merge["homo_type_real"].dtype != object:
-        df_merge["homo_type_real"] = df_merge["homo_type_real"].astype(np.int8)
-    df_merge["rep_id"] = pd.to_numeric(df_merge["rep_id"], downcast="integer")
-    return df_merge
-
-
 def _get_class_from_name(name):
     if not isinstance(name, str):
         return "Unknown"
@@ -1167,37 +1133,11 @@ def _get_class_from_name(name):
     return {"1": "1", "2": "2", "3": "3"}.get(parts[1], "Unknown")
 
 
-def _find_threshold(scores_t, scores_d, q):
-    """Lowest score threshold T with eFDP(T) <= q."""
-    n_t = len(scores_t)
-    if n_t == 0:
-        return None
-
-    cand_t = np.sort(np.unique(np.concatenate([scores_t, scores_d])))
-    scores_t_sorted = np.sort(scores_t)
-    scores_d_sorted = np.sort(scores_d)
-
-    target_count = n_t - np.searchsorted(scores_t_sorted, cand_t, side="left")
-    decoy_count = n_d - np.searchsorted(scores_d_sorted, cand_t, side="left") if (n_d := len(scores_d)) else np.zeros_like(cand_t)
-    est_fdp = (decoy_count + 1.0) / np.maximum(target_count, 1.0)
-
-    valid = np.where(est_fdp <= q)[0]
-    if len(valid) == 0:
-        return None
-
-    best_idx = valid[np.argmin(cand_t[valid])]
-    return {
-        "T_q": float(cand_t[best_idx]),
-        "eFDP_at_T": float(est_fdp[best_idx]),
-        "n_pass": int(target_count[best_idx]),
-    }
-
-
 def select_accepted_hits(df_qr, q):
     """Return metadata + DataFrame of accepted hits for one (qid, rep_id)."""
     scores_t = df_qr["score_real"].values
     scores_d = df_qr["score_decoy"].values
-    thr = _find_threshold(scores_t, scores_d, q)
+    thr = FDREvaluator().find_threshold(scores_t, scores_d, q)
     if thr is None:
         return thr, pd.DataFrame()
 
@@ -1390,7 +1330,7 @@ def run_discover(argv):
     print(f"        search_method: {args.search_method}")
     print(f"        real:  {path_real}")
     print(f"        decoy: {path_decoy}")
-    df_merge = make_pair_table_keep_tid(path_real, path_decoy, args.decoy_suffix)
+    df_merge = FDREvaluator(args.decoy_suffix).pair_table(path_real, path_decoy, keep_tid=True)
     print(f"        rows: {len(df_merge)}")
 
     print(f"\n=== Discovery @ q = {args.q_single} ===")

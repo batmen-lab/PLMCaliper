@@ -16,6 +16,8 @@ import pandas as pd
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
+sys.path.insert(0, str(_HERE.parent / "utils"))
+from fdr import FDREvaluator  # tutorials/utils/fdr.py
 from tsne import (BAGEL_PLOT_DIR, CLASS_COLORS, CLASS_MARKERS, DATA_DIR, FONT_LABEL,
                   FONT_LEGEND, FONT_TICK, FONT_TITLE, METHOD_DISK, SUMMARY_AX_SIZE,
                   SUMMARY_BG_ALPHA, SUMMARY_BG_SIZE, SUMMARY_STAR_EDGE_LW,
@@ -148,32 +150,21 @@ def load_pair_table(method, score_dir=DATA_DIR):
     return pair[["qid", "rep_id", "tid", "homo_type_real", "score_real", "score_decoy"]]
 
 
-def efdp_curve(scores_t, scores_d):
-    cand = np.sort(np.unique(np.concatenate([scores_t, scores_d])))
-    n_target_ge = len(scores_t) - np.searchsorted(np.sort(scores_t), cand, side="left")
-    n_decoy_ge = len(scores_d) - np.searchsorted(np.sort(scores_d), cand, side="left")
-    efdp = (n_decoy_ge + 1.0) / np.maximum(n_target_ge, 1.0)
-    # A hit's q is the best eFDP reachable at or below its score.
-    return {"cand": cand, "efdp": efdp, "q_curve": np.minimum.accumulate(efdp),
-            "n_target_ge": n_target_ge, "n_decoy_ge": n_decoy_ge}
-
-
 def per_hit_qvalues(pair, cutoff, tol=1e-12):
+    ev = FDREvaluator()
     frames = []
     for (qid, rep_id), grp in pair.groupby(["qid", "rep_id"], sort=False):
         scores_t = grp["score_real"].to_numpy(dtype=float)
-        if scores_t.size == 0:
+        scores_d = grp["score_decoy"].to_numpy(dtype=float)
+        thr = ev.find_threshold(scores_t, scores_d, cutoff, tol=tol)
+        if thr is None:
             continue
-        curve = efdp_curve(scores_t, grp["score_decoy"].to_numpy(dtype=float))
-
-        valid = np.flatnonzero(curve["efdp"] <= cutoff + tol)
-        if valid.size == 0:
-            continue
-        cut_i = valid[np.argmin(curve["cand"][valid])]
-        t_cutoff = float(curve["cand"][cut_i])
+        t_cutoff = thr["T_q"]
+        curve = ev.efdp_curve(scores_t, scores_d)
 
         at = np.searchsorted(curve["cand"], scores_t, side="right") - 1
-        q_hit = curve["q_curve"][at]
+        # A hit's q is the best eFDP reachable at or below its score.
+        q_hit = np.minimum.accumulate(curve["efdp"])[at]
         keep = q_hit <= cutoff + tol
 
         if not np.array_equal(keep, scores_t >= t_cutoff):
@@ -189,7 +180,7 @@ def per_hit_qvalues(pair, cutoff, tol=1e-12):
         sub["n_target_ge"] = curve["n_target_ge"][at][keep]
         sub["n_decoy_ge"] = curve["n_decoy_ge"][at][keep]
         sub["T_cutoff"] = t_cutoff
-        sub["eFDP_at_T_cutoff"] = float(curve["efdp"][cut_i])
+        sub["eFDP_at_T_cutoff"] = thr["eFDP_at_T"]
         sub = sub.sort_values("score_real", ascending=False)
         sub["hit_rank"] = np.arange(1, len(sub) + 1)
         frames.append(sub)

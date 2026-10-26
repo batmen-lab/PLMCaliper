@@ -9,7 +9,6 @@ BAGEL_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BAGEL_DIR.parents[1]
 DATA_DIR = PROJECT_ROOT / "data"
 PLMCALIPER_PY = PROJECT_ROOT / "src" / "PLMCaliper.py"
-ABLATION_CALIBRATE_PY = PROJECT_ROOT / "tutorials" / "ablation" / "calibrate.py"
 
 # bagel_main.py's own constants; the installed filenames have to match them
 QUERY_NAME, TARGET_NAME, WEIGHT_METHOD = "putative", "class_all", "AdaptiveBell"
@@ -38,6 +37,27 @@ def installed_paths(search_method: str, decoy_method: str, weight_method: str, d
     return (data_dir / f"result_{search_method}_{QUERY_NAME}_target_noisy_{TARGET_NAME}.txt",
             data_dir / f"result_{search_method}_{QUERY_NAME}_{decoy_method}"
                        f"_calibrated_gam_{weight_method}_{TARGET_NAME}.txt")
+
+
+def attach_labels(target_noisy: Path, raw_real: Path) -> None:
+    """Join homo_type from the raw real table onto the noisy target table, in place."""
+    noisy = pd.read_csv(target_noisy, sep="\t")
+    if "homo_type" in noisy.columns:
+        return
+    labels = pd.read_csv(raw_real, sep="\t", usecols=["qid", "tid", "homo_type"],
+                         dtype={"qid": str, "tid": str})
+    noisy["qid"] = noisy["qid"].astype(str)
+    noisy["tid"] = noisy["tid"].astype(str)
+    merged = noisy.merge(labels, on=["qid", "tid"], how="left")
+    if len(merged) != len(noisy):
+        raise SystemExit(f"[bagel-calib] label join changed the row count "
+                         f"({len(noisy)} -> {len(merged)}); duplicate (qid, tid)?")
+    n_missing = int(merged["homo_type"].isna().sum())
+    if n_missing:
+        print(f"  [warn] {n_missing} pairs had no label; marked unannotated (0)")
+        merged["homo_type"] = merged["homo_type"].fillna(0)
+    merged["homo_type"] = merged["homo_type"].astype(int)
+    merged.to_csv(target_noisy, sep="\t", index=False)
 
 
 def parse_args():
@@ -96,7 +116,6 @@ def main():
     work_dir.mkdir(parents=True, exist_ok=True)
 
     pc = _load(PLMCALIPER_PY, "PLMCaliper")
-    abl = _load(ABLATION_CALIBRATE_PY, "ablation_calibrate")
 
     print(f"[bagel-calib] === {a.search_method} / {a.decoy_method} "
           f"(decoy suffix {a.decoy_suffix}) ===")
@@ -114,7 +133,7 @@ def main():
     target_noisy = work_dir / "target_noisy.tsv"
     # the calibration writes qid/tid/score/rep_id; discover's pair table also
     # needs homo_type, so join it back from the raw real table
-    abl.attach_labels(target_noisy, raw_real)
+    attach_labels(target_noisy, raw_real)
 
     shutil.copyfile(target_noisy, out_real)
     shutil.copyfile(work_dir / "calibrated_decoy.tsv", out_decoy)

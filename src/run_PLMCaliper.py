@@ -6,7 +6,8 @@ from PLMCaliper import PLMCaliper, DECOY_DESIGNS
 
 def main(args):
     if args.cmd == "make-decoy":
-        out = PLMCaliper().build_decoy(args.fasta, args.out, design=args.design,
+        pc = PLMCaliper()
+        out = pc.build_decoy(args.fasta, args.out, design=args.design,
                                        markov_order=args.markov_order, seed=args.seed)
         suffix = DECOY_DESIGNS[args.design][0].format(k=args.markov_order)
         print(f"[PLMCaliper] saved decoy FASTA to {out}")
@@ -18,11 +19,12 @@ def main(args):
         df_real = pd.read_csv(args.real, sep=None, engine="python").dropna(subset=["score"])
         df_decoy = pd.read_csv(args.decoy, sep=None, engine="python").dropna(subset=["score"])
 
-        calibrated_decoy, noisy_target, efdps, cutoffs, hits = PLMCaliper(
+        pc = PLMCaliper(
             decoy_suffix=args.decoy_suffix, tau=args.tau, tol=args.tol,
             max_iter=args.max_iter, noise_lambda=args.noise_lambda,
             n_reps=args.n_reps, seed=args.seed, num_points=args.num_points,
-        ).plmcaliper(df_real, df_decoy, q_levels)
+        )
+        calibrated_decoy, noisy_target, efdps, cutoffs, hits = pc.plmcaliper(df_real, df_decoy, q_levels)
 
         if args.keep_intermediates:
             workdir = Path(args.keep_intermediates)

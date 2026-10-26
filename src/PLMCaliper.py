@@ -85,8 +85,7 @@ class PLMCaliper:
         """Decoy types: extended_mkv, mkv, shuf, and rev"""
         id_suffix, stem_suffix = DECOY_DESIGNS[design]
         suffix = id_suffix.format(k=markov_order)
-        out_path = out_path or (f"{os.path.splitext(fasta_path)[0]}"
-                                f"{stem_suffix.format(k=markov_order)}.fa")
+        out_path = out_path or f"{os.path.splitext(fasta_path)[0]}{stem_suffix.format(k=markov_order)}.fa"
         records = list(SeqIO.parse(fasta_path, "fasta"))
         decoys = []
 
@@ -208,9 +207,7 @@ class PLMCaliper:
         decoy_blocks, target_blocks = [], []
 
         n_queries = int(df_merge["qid"].nunique())
-        query_iter = tqdm(df_merge.groupby("qid"), total=n_queries,
-                          desc="  -> calibration", unit="query", leave=False)
-
+        query_iter = tqdm(df_merge.groupby("qid"), total=n_queries, desc="  -> calibration", unit="query", leave=False)
         for qid, df_q in query_iter:
             idx = df_q.index
 
@@ -302,8 +299,7 @@ class PLMCaliper:
                 probs = np.linspace(0.95, 1.0, 50)
                 y_cal_std = (y_cal_tmp - np.mean(y_cal_tmp)) / (np.std(y_cal_tmp) + 1e-8)
                 y_true_std = (y_real_noisy - np.mean(y_real_noisy)) / (np.std(y_real_noisy) + 1e-8)
-                current_loss = float(np.mean(np.abs(np.quantile(y_cal_std, probs)
-                                                    - np.quantile(y_true_std, probs))))
+                current_loss = float(np.mean(np.abs(np.quantile(y_cal_std, probs) - np.quantile(y_true_std, probs))))
 
                 if current_loss < best_loss:
                     best_loss = current_loss
