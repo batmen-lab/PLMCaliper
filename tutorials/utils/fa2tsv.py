@@ -1,8 +1,5 @@
-#!/usr/bin/env python3
-"""Convert a FASTA to the two-column `id<TAB>sequence` TSV that DHR searches take."""
 import argparse
 import os
-
 
 def fa2tsv(fa_path, tsv_path):
     n = 0

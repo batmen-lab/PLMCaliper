@@ -32,7 +32,7 @@ esac
     echo "[run_search] target not found or empty: $TARGET_PATH" >&2; exit 1; }
 
 # Hits to keep per query: the whole target DB, so a database of any size works
-# without hand-tuning DB_KHITS/PARSER_KHITS. DHR reads a `id<TAB>seq` .tsv; the
+# without hand-tuning DB_KHITS. DHR reads a `id<TAB>seq` .tsv; the
 # others read FASTA.
 case "$TARGET_PATH" in
     *.tsv) TARGET_N=$(grep -c . "$TARGET_PATH") ;;
@@ -57,9 +57,6 @@ if [[ "$TARGET_MODE" == "scop" && ! -s "$LABEL_FASTA" ]]; then
 fi
 
 DB_KHITS="${DB_KHITS:-$DEFAULT_KHITS}"
-PARSER_KHITS="${PARSER_KHITS:-$DEFAULT_KHITS}"
-[[ "$DB_KHITS" -ge "$PARSER_KHITS" ]] || {
-    echo "[run_search] DB_KHITS ($DB_KHITS) must be >= PARSER_KHITS ($PARSER_KHITS)" >&2; exit 1; }
 
 _env() { local n="${ENV_PREFIX}_$1"; echo "${!n:-}"; }
 SRC_DIR="$(_env SRC_DIR)"
@@ -212,30 +209,17 @@ if [[ "$TARGET_MODE" == "scop" ]]; then
             --data_type "$METHOD" \
             --input_path "$OUTPUT_DIR" \
             --save_path "$DATA_DIR" \
-            --max_hits "$PARSER_KHITS" \
             --target-fasta "$LABEL_FASTA"
-        mv "$DATA_DIR/parsed_result/${OUT_TAG}_hit${PARSER_KHITS}.txt" "$PARSED"
+        mv "$DATA_DIR/parsed_result/${OUT_TAG}.txt" "$PARSED"
         rmdir "$DATA_DIR/parsed_result" 2>/dev/null || true
     fi
 else
-    # decoy suffix to strip before the id's BAGEL class is read off it
-    case "$query_basename" in
-        *_extended_shuf|*_shuf) TYPE_SUFFIX="shuf" ;;
-        *_extended_mkv*)        TYPE_SUFFIX="mkv" ;;
-        *_mkv1)                 TYPE_SUFFIX="mkv1" ;;
-        *_mkv2)                 TYPE_SUFFIX="mkv2" ;;
-        *_rev)                  TYPE_SUFFIX="rev" ;;
-        *_dplm)                 TYPE_SUFFIX="dplm" ;;
-        *)                      TYPE_SUFFIX="" ;;
-    esac
     [[ "$METHOD" == "blastp" ]] && RAW_EXT="out" || RAW_EXT="txt"
     PARSED="$DATA_DIR/result_${METHOD}_${query_basename}_${target_basename}.txt"
     python "$BASE_DIR/tutorials/utils/process_searching_score.py" parse-bagel \
         --method "$METHOD" \
         --score-file "$OUTPUT_DIR/${query_basename}.${RAW_EXT}" \
-        --out-path "$PARSED" \
-        --type-suffix "$TYPE_SUFFIX" \
-        --max-hits "$PARSER_KHITS"
+        --out-path "$PARSED"
 fi
 
 echo "[run_search] $METHOD done -> $PARSED"

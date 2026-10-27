@@ -10,7 +10,6 @@ def batch_filename(fasta_path, batch_size, index):
 
 
 def split_fasta(fasta_path, output_dir=None, batch_size=DEFAULT_BATCH_SIZE):
-    """Shard a query FASTA into batches that can be searched in parallel and resumed."""
     assert os.path.exists(fasta_path), f"File not found: {fasta_path}"
 
     output_prefix = os.path.basename(fasta_path).split('.fa')[0]
