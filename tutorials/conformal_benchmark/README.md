@@ -1,4 +1,4 @@
-### 4. Conformal Benchmark
+### Conformal Benchmark
 
 Directory:
 
