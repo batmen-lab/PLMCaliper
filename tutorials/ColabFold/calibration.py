@@ -99,7 +99,6 @@ def run_plmcaliper(dataset: str, method: str, real: Path, decoy: Path, out: Path
     if python_exe:
         cmd = [python_exe, str(RUN_PLMCALIPER), "calibrate",
                "--real", str(real), "--decoy", str(decoy), "--out", str(out),
-               "--decoy-suffix", DECOY_SUFFIX,
                "--target-fdr", *[f"{q:g}" for q in EFDR_THRESHOLDS],
                "--tau", str(tau), "--tol", str(CALIB["tol"]),
                "--max-iter", str(CALIB["max_iter"]),
@@ -115,7 +114,7 @@ def run_plmcaliper(dataset: str, method: str, real: Path, decoy: Path, out: Path
     df_real = pd.read_csv(real, sep=None, engine="python").dropna(subset=["score"])
     df_decoy = pd.read_csv(decoy, sep=None, engine="python").dropna(subset=["score"])
     calibrated_decoy, noisy_target, efdps, cutoffs, hits = pc.PLMCaliper(
-        decoy_suffix=DECOY_SUFFIX, tau=tau, tol=CALIB["tol"],
+        tau=tau, tol=CALIB["tol"],
         max_iter=CALIB["max_iter"], noise_lambda=CALIB["noise_lambda"],
         n_reps=CALIB["n_reps"], seed=CALIB["seed"],
         num_points=CALIB["num_points"],

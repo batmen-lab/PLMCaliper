@@ -29,31 +29,45 @@ class PLMCaliper:
     https://doi.org/10.5281/zenodo.22436908
 
     Input for PLM-Caliper: the search scores of the real queries and of their decoys against
-    the same target database.
+    the same target database. A decoy qid is its real qid plus a fixed suffix (build_decoy
+    writes e.g. "_mkv" or "_shuf"); PLM-Caliper reads that suffix off the two tables.
 
     Usage:
-        pc = PLMCaliper(decoy_suffix="_mkv", tau=0.2)
+        # Option 1:
+        pc = PLMCaliper(tau=0.2)
         decoy_fa = pc.build_decoy("queries.fa", design="extended_mkv")
         calibrated_decoy, noisy_target, efdps, cutoffs, hits = pc.plmcaliper(df_real, df_decoy, q_levels=[0.5])
-
         # Each step can also be run on its own:
         calibrated_decoy, noisy_target = pc.calibration(df_real, df_decoy)
         efdps = pc.compute_efdp(calibrated_decoy, noisy_target)
         cutoffs = pc.compute_cutoff(efdps, q_levels=[0.5])
         hits = pc.obtain_hits(noisy_target, efdps, cutoffs)
 
+        # Option 2:
         # If you want the results written to files, use the command line:
         python run_PLMCaliper.py calibrate --real real.tsv --decoy decoy.tsv --target-fdr 0.5 --out cutoffs.tsv --hits-out hits.tsv
 
     For more examples, refer to the tutorials folder.
 
     params:
-        - **decoy_suffix**:
-            Id suffix that marks a decoy query; a decoy qid is the real qid plus this suffix.
         - **tau**:
             Quantile level of the pinball loss in the per-query spline fit. Default: 0.2.
+        - **n_splines**:
+            Degrees of freedom of the cubic B-spline that maps decoy scores onto the real null. Default: 12.
+        - **lam**:
+            Weight of the smoothness penalty on neighbouring spline coefficients. Default: 1.0.
         - **num_points**:
             Number of quantile anchors used in the spline fit. Default: 1000.
+        - **tol**:
+            Tail-match tolerance: the fit stops once the calibrated decoy matches the real scores on the top 5% tail within this distance. Default: 0.2.
+        - **max_iter**:
+            Maximum number of spline fits per query, each one tilting the anchors further to the tail. Default: 2.
+        - **noise_lambda**:
+            Scale of the gaussian noise added to both the calibrated decoy and the target, relative to each query's real score range. Default: 0.02.
+        - **n_reps**:
+            Number of noise replicates. Default: 1.
+        - **seed**:
+            Random seed for the noise. Default: 43.
 
     data:
         - **df_real**: search results of the real queries.
@@ -68,9 +82,8 @@ class PLMCaliper:
         - hits: selected target hits with the eFDP at each hit's score.
     """
 
-    def __init__(self, decoy_suffix="_mkv", tau=0.2, n_splines=12, lam=1.0, num_points=1000,
+    def __init__(self, tau=0.2, n_splines=12, lam=1.0, num_points=1000,
                  tol=0.2, max_iter=2, noise_lambda=0.02, n_reps=1, seed=43):
-        self.decoy_suffix = decoy_suffix
         self.tau = tau
         self.n_splines = n_splines
         self.lam = lam
@@ -190,11 +203,20 @@ class PLMCaliper:
 
         return df_out.drop(columns=["p_target", "p_decoy"])
 
+    def _decoy_suffix(self, real_qids, decoy_qids):
+        # The suffix turns a real qid into its decoy qid (e.g. "_mkv")
+        real_qids = set(real_qids)
+        for qid in pd.unique(decoy_qids):
+            for i in range(len(qid), 0, -1):
+                if qid[:i] in real_qids:
+                    return qid[i:]
+
     def calibration(self, df_real, df_decoy):
         tau, n_splines, lam, num_points = self.tau, self.n_splines, self.lam, self.num_points
         tol, max_iter, noise_lambda, n_reps = self.tol, self.max_iter, self.noise_lambda, self.n_reps
 
-        df_decoy = df_decoy.assign(qid=df_decoy["qid"].str.removesuffix(self.decoy_suffix))
+        decoy_suffix = self._decoy_suffix(df_real["qid"], df_decoy["qid"])
+        df_decoy = df_decoy.assign(qid=df_decoy["qid"].str.removesuffix(decoy_suffix))
         df_merge = df_real.merge(df_decoy[["qid", "tid", "score"]], on=["qid", "tid"],
                                  suffixes=("_real", "_decoy"))
         
@@ -330,7 +352,7 @@ class PLMCaliper:
                 yc_r = np.clip(yc_r, float(np.min(yr_noisy)), float(np.max(yr_noisy)))
 
                 d_block = pd.DataFrame({
-                    "qid": str(qid) + self.decoy_suffix,
+                    "qid": str(qid) + decoy_suffix,
                     "tid": df_q_raw["tid"].values,
                     "score": yc_r * real_range + real_min,
                 }).sort_values("score", ascending=False)
@@ -349,8 +371,8 @@ class PLMCaliper:
                 pd.concat(target_blocks, ignore_index=True))
 
     def compute_efdp(self, calibrated_decoy, noisy_target):
-        decoy = calibrated_decoy.assign(
-            qid=calibrated_decoy["qid"].str.removesuffix(self.decoy_suffix))
+        decoy_suffix = self._decoy_suffix(noisy_target["qid"], calibrated_decoy["qid"])
+        decoy = calibrated_decoy.assign(qid=calibrated_decoy["qid"].str.removesuffix(decoy_suffix))
         paired = noisy_target.merge(decoy, on=["qid", "tid", "rep_id"], suffixes=("_real", "_decoy"))
 
         curves = []

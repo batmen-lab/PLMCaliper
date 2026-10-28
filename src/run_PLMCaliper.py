@@ -9,7 +9,6 @@ def main(args):
         pc = PLMCaliper()
         out = pc.build_decoy(args.fasta, args.out, design=args.design,
                                        markov_order=args.markov_order, seed=args.seed)
-        suffix = DECOY_DESIGNS[args.design][0].format(k=args.markov_order)
         print(f"[PLMCaliper] saved decoy FASTA to {out}")
 
     elif args.cmd == "calibrate":
@@ -20,7 +19,7 @@ def main(args):
         df_decoy = pd.read_csv(args.decoy, sep=None, engine="python").dropna(subset=["score"])
 
         pc = PLMCaliper(
-            decoy_suffix=args.decoy_suffix, tau=args.tau, tol=args.tol,
+            tau=args.tau, tol=args.tol,
             max_iter=args.max_iter, noise_lambda=args.noise_lambda,
             n_reps=args.n_reps, seed=args.seed, num_points=args.num_points,
         )
@@ -77,7 +76,6 @@ if __name__ == "__main__":
     p.add_argument("--real", required=True, help="search results for the real queries")
     p.add_argument("--decoy", required=True, help="search results for the decoy queries")
     p.add_argument("--out", required=True, help="output TSV of per-query cutoffs")
-    p.add_argument("--decoy-suffix", default="_mkv", help="id suffix identifying decoy queries")
     p.add_argument("--target-fdr", nargs="+", type=float, required=True, help="target FDR level(s)")
     p.add_argument("--tau", type=float, default=0.2, help="quantile level of the pinball loss")
     p.add_argument("--num-points", type=int, default=1000, help="number of quantile anchors used in the spline fit.")
