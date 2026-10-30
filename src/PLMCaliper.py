@@ -4,6 +4,7 @@ from tqdm import tqdm
 import os
 import random
 from collections import defaultdict
+from types import SimpleNamespace
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -13,7 +14,7 @@ from patsy import dmatrix, build_design_matrices
 import cvxpy as cp
 
 
-# Decoy types
+# Decoy types <"decoy_design": ("suffix", "file_suffix")>
 DECOY_DESIGNS = {
     "extended_mkv": ("_mkv",    "_extended_mkv{k}"),
     "mkv":          ("_mkv{k}", "_mkv{k}"),
@@ -36,7 +37,8 @@ class PLMCaliper:
         # Option 1:
         pc = PLMCaliper(tau=0.2)
         decoy_fa = pc.build_decoy("queries.fa", design="extended_mkv")
-        calibrated_decoy, noisy_target, efdps, cutoffs, hits = pc.plmcaliper(df_real, df_decoy, q_levels=[0.5])
+        result = pc.plmcaliper(df_real, df_decoy, q_levels=[0.5])
+        result.cutoffs, result.hits    # also result.calibrated_decoy, result.noisy_target, result.efdps
         # Each step can also be run on its own:
         calibrated_decoy, noisy_target = pc.calibration(df_real, df_decoy)
         efdps = pc.compute_efdp(calibrated_decoy, noisy_target)
@@ -74,7 +76,8 @@ class PLMCaliper:
         - **df_decoy**: search results of the decoy queries.
         - **q_levels**: list of target FDR levels.
 
-    return:
+    return (plmcaliper):
+        A SimpleNamespace object with the following attributes:
         - calibrated_decoy: calibrated decoy scores.
         - noisy_target: real scores with the noise for breaking tie purpose.
         - efdps: eFDP at every candidate threshold.
@@ -434,4 +437,5 @@ class PLMCaliper:
         efdps = self.compute_efdp(calibrated_decoy, noisy_target)
         cutoffs = self.compute_cutoff(efdps, q_levels)
         hits = self.obtain_hits(noisy_target, efdps, cutoffs)
-        return calibrated_decoy, noisy_target, efdps, cutoffs, hits
+        return SimpleNamespace(calibrated_decoy=calibrated_decoy, noisy_target=noisy_target,
+                               efdps=efdps, cutoffs=cutoffs, hits=hits)

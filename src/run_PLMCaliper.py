@@ -23,18 +23,18 @@ def main(args):
             max_iter=args.max_iter, noise_lambda=args.noise_lambda,
             n_reps=args.n_reps, seed=args.seed, num_points=args.num_points,
         )
-        calibrated_decoy, noisy_target, efdps, cutoffs, hits = pc.plmcaliper(df_real, df_decoy, q_levels)
+        result = pc.plmcaliper(df_real, df_decoy, q_levels)
 
         if args.keep_intermediates:
             workdir = Path(args.keep_intermediates)
             workdir.mkdir(parents=True, exist_ok=True)
-            calibrated_decoy.to_csv(workdir / "calibrated_decoy.tsv", sep="\t", index=False)
-            noisy_target.to_csv(workdir / "target_noisy.tsv", sep="\t", index=False)
+            result.calibrated_decoy.to_csv(workdir / "calibrated_decoy.tsv", sep="\t", index=False)
+            result.noisy_target.to_csv(workdir / "target_noisy.tsv", sep="\t", index=False)
             print(f"[PLMCaliper] saved calibrated decoy and noisy target to {workdir}")
 
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
 
-        written = cutoffs.copy()
+        written = result.cutoffs.copy()
         written["target_fdr"] = [f"{v:g}" for v in written["target_fdr"]]
         written["cutoff_score"] = [("" if v != v else f"{v:.17g}") for v in written["cutoff_score"]]
         written["est_fdp"] = [("" if v != v else f"{v:.6g}") for v in written["est_fdp"]]
@@ -44,7 +44,7 @@ def main(args):
         if args.hits_out:
             hits_path = Path(args.hits_out)
             hits_path.parent.mkdir(parents=True, exist_ok=True)
-            written_hits = hits.copy()
+            written_hits = result.hits.copy()
             written_hits["score"] = [f"{v:.17g}" for v in written_hits["score"]]
             written_hits["est_fdp"] = [f"{v:.6g}" for v in written_hits["est_fdp"]]
             written_hits.to_csv(hits_path, sep="\t", index=False)
@@ -52,7 +52,7 @@ def main(args):
 
         print(f"\n{'target_fdr':>10} {'queries_controlled':>19} {'median_cutoff':>15} {'median_n_hits':>15}")
         for target_fdr in q_levels:
-            s = cutoffs[cutoffs["target_fdr"] == target_fdr]
+            s = result.cutoffs[result.cutoffs["target_fdr"] == target_fdr]
             ok = s["cutoff_score"].notna()
             med_c = s.loc[ok, "cutoff_score"].median() if ok.any() else float("nan")
             med_n = s.loc[ok, "n_selected"].median() if ok.any() else 0
