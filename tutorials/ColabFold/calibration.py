@@ -113,12 +113,12 @@ def run_plmcaliper(dataset: str, method: str, real: Path, decoy: Path, out: Path
     pc = load_plmcaliper()
     df_real = pd.read_csv(real, sep=None, engine="python").dropna(subset=["score"])
     df_decoy = pd.read_csv(decoy, sep=None, engine="python").dropna(subset=["score"])
-    calibrated_decoy, noisy_target, efdps, cutoffs, hits = pc.PLMCaliper(
+    cutoffs = pc.PLMCaliper(
         tau=tau, tol=CALIB["tol"],
         max_iter=CALIB["max_iter"], noise_lambda=CALIB["noise_lambda"],
         n_reps=CALIB["n_reps"], seed=CALIB["seed"],
         num_points=CALIB["num_points"],
-    ).plmcaliper(df_real, df_decoy, EFDR_THRESHOLDS)
+    ).plmcaliper(df_real, df_decoy, EFDR_THRESHOLDS).cutoffs
     # same number formats as run_PLMCaliper.py calibrate, so both paths write the same file
     cutoffs["target_fdr"] = [f"{v:g}" for v in cutoffs["target_fdr"]]
     cutoffs["cutoff_score"] = [("" if v != v else f"{v:.17g}") for v in cutoffs["cutoff_score"]]
