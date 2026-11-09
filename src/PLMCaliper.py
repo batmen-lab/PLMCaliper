@@ -38,7 +38,7 @@ class PLMCaliper:
         # Option 1:
         pc = PLMCaliper(tau=0.2)
         decoy_fa = pc.build_decoy("queries.fa", design="extended_mkv")
-        result = pc.plmcaliper(df_real, df_decoy, q_levels=[0.5])
+        result = pc.plmcaliper(df_real, df_decoy, q_levels=[0.5]) # df_real and df_decoy are both searching scores
         result.cutoffs, result.hits    # also result.calibrated_decoy, result.noisy_target, result.efdps
         # Each step can also be run on its own:
         calibrated_decoy, noisy_target = pc.calibration(df_real, df_decoy)
@@ -48,6 +48,7 @@ class PLMCaliper:
 
         # Option 2:
         # If you want the results written to files, use the command line:
+        # real.tsv / decoy.tsv: search scores (qid, tid, score) of the real and decoy queries against the same database
         python run_PLMCaliper.py calibrate --real real.tsv --decoy decoy.tsv --target-fdr 0.5 --out cutoffs.tsv --hits-out hits.tsv
 
     For more examples, refer to the tutorials folder.
