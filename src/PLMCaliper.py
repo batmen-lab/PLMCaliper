@@ -16,10 +16,11 @@ import cvxpy as cp
 
 # Decoy types <"decoy_design": ("suffix", "file_suffix")>
 DECOY_DESIGNS = {
-    "extended_mkv": ("_mkv",    "_extended_mkv{k}"),
-    "mkv":          ("_mkv{k}", "_mkv{k}"),
-    "shuf":         ("_shuf",   "_shuf"),
-    "rev":          ("_rev",    "_rev"),
+    "extended_mkv":  ("_mkv",    "_extended_mkv{k}"),
+    "extended_shuf": ("_shuf",   "_extended_shuf"),
+    "mkv":           ("_mkv{k}", "_mkv{k}"),
+    "shuf":          ("_shuf",   "_shuf"),
+    "rev":           ("_rev",    "_rev"),
 }
 
 
@@ -98,7 +99,7 @@ class PLMCaliper:
         self.seed = seed
 
     def build_decoy(self, fasta_path, out_path=None, design="extended_mkv", markov_order=2, seed=0):
-        """Decoy types: extended_mkv, mkv, shuf, and rev"""
+        """Decoy types: extended_mkv, extended_shuf, mkv, shuf, and rev"""
         id_suffix, stem_suffix = DECOY_DESIGNS[design]
         suffix = id_suffix.format(k=markov_order)
         out_path = out_path or f"{os.path.splitext(fasta_path)[0]}{stem_suffix.format(k=markov_order)}.fa"
@@ -116,6 +117,14 @@ class PLMCaliper:
                 seq_list = list(str(record.seq))
                 rng.shuffle(seq_list)
                 decoys.append("".join(seq_list))
+
+        # extended_shuf: the query followed by a shuffle of its own residues
+        elif design == "extended_shuf":
+            random.seed(seed)
+            for record in records:
+                seq_list = list(str(record.seq))
+                random.shuffle(seq_list)
+                decoys.append(str(record.seq) + "".join(seq_list))
 
         # extended_mkv / mkv
         else:
