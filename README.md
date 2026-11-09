@@ -66,10 +66,10 @@ PLMCaliper/
 │   └── run_PLMCaliper.py
 │
 └── tutorials/
-    ├── ablation/
-    ├── bagel/
-    ├── ColabFold/
-    ├── conformal_benchmark/
+    ├── ablation.ipynb
+    ├── bagel.ipynb
+    ├── ColabFold.ipynb
+    ├── conformal_benchmark.ipynb
     ├── PLM_searching_cmds/
     ├── utils/
     └── setup.sh
